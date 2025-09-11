@@ -1,10 +1,14 @@
 import "dotenv/config";
 import { getClient } from "./TDLib/index.js";
+import { handleUpdate } from "./update/index.js";
+import { anime } from "./anime/index.js";
 
 (async () => {
   const client = await getClient();
 
   client.on("update", async (update) => {
-    console.log("收到更新", JSON.stringify(update, null, 2));
+    handleUpdate(update);
   });
+  await client.loginAsBot(String(process.env.TELEGRAM_BOT_TOKEN));
+  await anime();
 })();
