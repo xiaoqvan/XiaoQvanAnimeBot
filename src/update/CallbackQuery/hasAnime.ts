@@ -346,14 +346,14 @@ export async function nullAnime(
   // 下载种子文件并获取下载路径
   const Torrent = await downloadTorrentFromUrl(item.magnet, item.title);
 
-  if (!Torrent || !Torrent.raw.download_path) {
+  if (!Torrent || !Torrent.raw.content_path) {
     return;
   }
 
   const cacheAnimeMeg = await sendMegToAnime(
     newAnime,
     item,
-    Torrent?.raw.download_path,
+    Torrent?.raw.content_path,
     true
   );
 

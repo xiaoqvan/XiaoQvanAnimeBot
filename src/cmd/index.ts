@@ -5,6 +5,7 @@ import handleSearchAnime from "./searchanime.js";
 import { handleHelp } from "./help.js";
 import logger from "../log/index.js";
 import { ErrorHandler } from "../function/index.js";
+import { sendMessage } from "../TDLib/function/message.js";
 
 /**
  * 处理命令
@@ -64,6 +65,7 @@ export async function BotCommand(message: messageType) {
         help: handleHelp,
         searchanime: handleSearchAnime,
         s: handleSearchAnime,
+        test: test,
       };
 
       // 基于命令名分发到对应的处理器
@@ -160,4 +162,7 @@ export async function BotCommand(message: messageType) {
       logger.error(error);
     }
   }
+}
+async function test(message: messageType, commandParts: string[]) {
+  console.log("测试命令处理器被调用", message, commandParts);
 }

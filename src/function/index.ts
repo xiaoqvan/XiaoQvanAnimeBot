@@ -93,6 +93,7 @@ export async function extractVideoMetadata(videoPath: string): Promise<{
     duration = 0;
   let ffprobeStreamOutput = "";
   let ffprobeFormatOutput = "";
+
   try {
     ffprobeStreamOutput = execSync(
       `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of default=noprint_wrappers=1:nokey=0 "${videoPath}"`
@@ -229,8 +230,8 @@ export async function ErrorHandler(error: unknown) {
     errorText = JSON.stringify(error, null, 2);
   }
 
-  await sendMessage(Number(process.env.ADMIN_USER_ID), {
-    thread_id: Number(process.env.ERROR_USER_THREAD_ID),
+  await sendMessage(Number(process.env.ADMIN_GROUP_ID), {
+    thread_id: Number(process.env.ERROR_GROUP_THREAD_ID),
     text: `错误信息:\n${errorText}`,
     link_preview: true,
   });

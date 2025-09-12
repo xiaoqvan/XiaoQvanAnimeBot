@@ -287,7 +287,7 @@ async function newAnimeHasBeenSaved(item: animeItem) {
   const animeMeg = await sendMegToAnime(
     anime,
     item,
-    torrent.raw.download_path,
+    torrent.raw.content_path,
     true
   );
 
@@ -429,7 +429,7 @@ async function updateAnime(anime: animeType, item: animeItem) {
     throw new Error(` 种子下载失败: ${item.title}`);
   }
 
-  const animeMeg = await sendMegToAnime(anime, item, Torrent.raw.download_path);
+  const animeMeg = await sendMegToAnime(anime, item, Torrent.raw.content_path);
 
   if (!animeMeg) {
     throw new Error(`发送动漫消息失败${item.title}`);
@@ -653,9 +653,8 @@ async function ErrorHandler(error: unknown) {
   } else {
     errorText = JSON.stringify(error, null, 2);
   }
-
-  await sendMessage(Number(process.env.ADMIN_USER_ID), {
-    thread_id: Number(process.env.ERROR_USER_THREAD_ID),
+  await sendMessage(Number(process.env.ADMIN_GROUP_ID), {
+    thread_id: Number(process.env.ERROR_GROUP_THREAD_ID),
     text: `错误信息:\n${errorText}`,
   });
 }
