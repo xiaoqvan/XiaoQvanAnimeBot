@@ -3,9 +3,9 @@ import logger from "../log/index.js";
 
 async function Torrent() {
   const QBclient = new QBittorrent({
-    baseUrl: "http://localhost:8080", // 默认Web UI地址
-    username: "admin",
-    password: "123456",
+    baseUrl: process.env.QBITTORRENT_HOST,
+    username: process.env.QBITTORRENT_USERNAME,
+    password: process.env.QBITTORRENT_PASSWORD,
   });
 
   try {

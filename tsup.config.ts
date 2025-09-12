@@ -24,7 +24,7 @@ async function modifyPackageJson() {
   pkg.scripts = {
     start: "node --enable-source-maps index.js",
     debug: "node --enable-source-maps index.js --debug",
-    pm2: "pm2 start index.js --node-args='--enable-source-maps'",
+    pm2: "pm2 start index.js --name \"xiaoqvan-anime-bot\" --node-args='--enable-source-maps'",
   };
 
   // 删除 devDependencies
