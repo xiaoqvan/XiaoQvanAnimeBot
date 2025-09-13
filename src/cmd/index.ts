@@ -2,10 +2,9 @@ import { getMe } from "../TDLib/function/get.js";
 import type { message as messageType } from "tdlib-types";
 import start from "./start.js";
 import handleSearchAnime from "./searchanime.js";
-import { handleHelp } from "./help.js";
+import handleHelp from "./help.js";
 import logger from "../log/index.js";
 import { ErrorHandler } from "../function/index.js";
-import { sendMessage } from "../TDLib/function/message.js";
 
 /**
  * 处理命令

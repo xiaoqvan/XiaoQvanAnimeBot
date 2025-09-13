@@ -7,7 +7,7 @@ import { isUserAdmin } from "../TDLib/function/index.js";
  * @param message - 消息对象
  * @param commandParts - 命令参数数组
  */
-export async function handleHelp(message: messageType, commandParts: string[]) {
+export default async function handleHelp(message: messageType, commandParts: string[]) {
   const chatId = message.chat_id;
 
   try {
