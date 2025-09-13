@@ -41,7 +41,7 @@ export default defineConfig({
   format: ["esm"],
   dts: false,
   sourcemap: true,
-  clean: true,
+  clean: false,
   minify: true,
   define: {
     ...defineEnv,
