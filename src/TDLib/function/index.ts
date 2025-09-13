@@ -10,11 +10,8 @@ import type {
   ChatMemberStatus,
   MessageSender,
 } from "tdlib-types";
-import type {
-  markdownToken,
-  markdownPattern,
-  markdownExtractResult,
-} from "../types/index.js";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
 import { getClient } from "../index.js";
 import logger from "../../log/index.js";
 import {
@@ -42,195 +39,240 @@ export function parseMarkdownToFormattedText(
 ): formattedText$Input {
   const entities: textEntity$Input[] = [];
   let plainText = "";
-  let currentOffset = 0;
 
-  const patterns: markdownPattern[] = [
-    {
-      name: "link",
-      regex:
-        /\[([^\]]+?)\]\((tg:\/\/user\?id=[0-9]+|tg:\/\/openmessage\?chat_id=-?[0-9]+|[^)]+?)\)/g,
-      getEntity: (text: string, link?: string): TextEntityType$Input => {
-        // 匹配 tg://user?id=...
-        if (link && link.startsWith("tg://user?id=")) {
-          return {
-            _: "textEntityTypeMentionName",
-            user_id: parseInt(link.split("=")[1], 10),
-          };
-        }
-        // 处理 tg://openmessage?chat_id=...
-        else if (link && link.startsWith("tg://openmessage?chat_id=")) {
-          let chatId = link.split("=")[1];
-          // 如果是以 -100 开头的群组ID，去掉前缀
-          if (chatId.startsWith("-100")) {
-            chatId = chatId.substring(4);
-          }
-          return {
-            _: "textEntityTypeTextUrl",
-            url: `tg://openmessage?chat_id=${chatId}`,
-          };
-        }
-        // 处理普通链接
-        return {
-          _: "textEntityTypeTextUrl",
-          url: link || "",
-        };
-      },
-      extract: (match: RegExpExecArray) => ({
-        content: match[1], // 链接文本
-        extra: match[2], // 链接内容（URL 或 user ID）
-      }),
-    },
-    {
-      name: "blockQuote",
-      // 匹配块引用格式 > 文本，支持多行
-      regex: /^(>\s+(.+?)(?:\n|$))+/gm,
-      getEntity: (): TextEntityType$Input => ({
-        _: "textEntityTypeBlockQuote",
-      }),
-      extract: (match: RegExpExecArray) => {
-        // 提取引用内容并去除每行开头的 > 符号和空格
-        const content = match[0]
-          .split("\n")
-          .filter((line: string) => line.startsWith(">"))
-          .map((line: string) => line.replace(/^>\s+/, ""))
-          .join("\n");
+  try {
+    // 使用 remark-parse 解析 Markdown
+    const processor = unified().use(remarkParse);
+    const tree = processor.parse(markdown);
 
-        return { content };
-      },
-    },
-    {
-      name: "expandableBlockQuote",
-      // 匹配可展开块引用格式 >>> 标题\n内容，支持多行
-      regex: /^>>>\s+(.+?)\n([\s\S]+?)(?:\n(?!>)|$)/gm,
-      getEntity: (): TextEntityType$Input => ({
-        _: "textEntityTypeExpandableBlockQuote",
-      }),
-      extract: (match: RegExpExecArray) => ({
-        content: match[2], // 引用内容
-        extra: match[1], // 引用标题
-      }),
-    },
-    {
-      name: "preCode",
-      // 匹配 ```language\ncode```
-      regex: /```([a-zA-Z0-9_]*)\n([\s\S]+?)```/g,
-      getEntity: (text: string, language?: string): TextEntityType$Input => ({
-        _: "textEntityTypePreCode",
-        language: language || "",
-      }),
-      extract: (match: RegExpExecArray) => ({
-        content: match[2], // 代码内容
-        extra: match[1], // 语言（如果有）
-      }),
-    },
-    {
-      name: "inlineCode",
-      // 匹配 `code`
-      regex: /`([^`\n]+?)`/g,
-      getEntity: (): TextEntityType$Input => ({ _: "textEntityTypeCode" }),
-    },
-    {
-      name: "bold",
-      regex: /\*\*([^\n*]+?)\*\*/g,
-      getEntity: (): TextEntityType$Input => ({ _: "textEntityTypeBold" }),
-    },
-    {
-      name: "italic",
-      regex: /_([^_\n]+?)_/g,
-      getEntity: (): TextEntityType$Input => ({ _: "textEntityTypeItalic" }),
-    },
-    {
-      name: "underline",
-      regex: /__([^_\n]+?)__/g,
-      getEntity: (): TextEntityType$Input => ({ _: "textEntityTypeUnderline" }),
-    },
-    {
-      name: "strikethrough",
-      regex: /~~([^~\n]+?)~~/g,
-      getEntity: (): TextEntityType$Input => ({
-        _: "textEntityTypeStrikethrough",
-      }),
-    },
-    {
-      name: "spoiler",
-      regex: /\|\|([^|\n]+?)\|\|/g,
-      getEntity: (): TextEntityType$Input => ({ _: "textEntityTypeSpoiler" }),
-    },
-  ];
-
-  const tokens: markdownToken[] = [];
-  let text = markdown;
-
-  while (true) {
-    let bestMatch: RegExpExecArray | null = null;
-    let bestPattern: markdownPattern | null = null;
-    let extractResult: markdownExtractResult | null = null;
-
-    for (const pattern of patterns) {
-      pattern.regex.lastIndex = 0;
-      const match = pattern.regex.exec(text);
-      if (match && (!bestMatch || match.index < bestMatch.index)) {
-        bestMatch = match;
-        bestPattern = pattern;
-        if (pattern.extract) {
-          extractResult = pattern.extract(match);
-        } else {
-          extractResult = {
-            content: match[1],
-            extra: match[2],
-          };
-        }
-      }
-    }
-
-    if (!bestMatch || !bestPattern || !extractResult) break;
-
-    const matchIndex = bestMatch.index;
-    const fullMatch = bestMatch[0];
-    const { content, extra } = extractResult;
-
-    if (matchIndex > 0) {
-      tokens.push({
-        type: "text",
-        content: text.slice(0, matchIndex),
-      });
-    }
-
-    tokens.push({
-      type: "entity",
-      content,
-      entity: bestPattern.getEntity(content, extra),
-    });
-
-    text = text.slice(matchIndex + fullMatch.length);
+    // 遍历 AST 并构建格式化文本
+    const result = processNode(tree, 0);
+    plainText = result.text;
+    entities.push(...result.entities);
+  } catch (error) {
+    logger.error("parseMarkdownToFormattedText 解析失败:", error);
+    // 如果解析失败，返回纯文本
+    plainText = markdown;
   }
-
-  if (text.length > 0) {
-    tokens.push({ type: "text", content: text });
-  }
-
-  for (const token of tokens) {
-    if (token.type === "text") {
-      plainText += token.content;
-      currentOffset += token.content.length;
-    } else if (token.type === "entity") {
-      entities.push({
-        _: "textEntity" as const,
-        offset: currentOffset,
-        length: token.content.length,
-        type: token.entity!,
-      });
-      plainText += token.content;
-      currentOffset += token.content.length;
-    }
-  }
-  // console.log(entities);
 
   return {
     _: "formattedText" as const,
     text: plainText,
     entities,
   };
+}
+
+/**
+ * 处理 MDAST 节点并生成格式化文本和实体
+ */
+function processNode(
+  node: any,
+  currentOffset: number
+): { text: string; entities: textEntity$Input[] } {
+  const entities: textEntity$Input[] = [];
+  let text = "";
+
+  if (node.type === "text") {
+    return { text: node.value, entities: [] };
+  }
+
+  if (node.type === "root") {
+    // 处理根节点的子节点
+    if (node.children) {
+      for (let i = 0; i < node.children.length; i++) {
+        const child = node.children[i];
+        const result = processNode(child, currentOffset + text.length);
+        text += result.text;
+
+        // 调整实体的偏移量
+        for (const entity of result.entities) {
+          entities.push({
+            ...entity,
+            offset:
+              (entity.offset || 0) +
+              currentOffset +
+              (text.length - result.text.length),
+          });
+        }
+
+        // 在段落之间添加换行符
+        if (child.type === "paragraph" && i < node.children.length - 1) {
+          text += "\n";
+        }
+      }
+    }
+    return { text, entities };
+  }
+
+  if (node.type === "paragraph") {
+    // 处理段落子节点
+    if (node.children) {
+      for (const child of node.children) {
+        const result = processNode(child, 0); // 在段落内重新计算偏移
+        text += result.text;
+
+        // 调整实体的偏移量到当前段落的位置
+        for (const entity of result.entities) {
+          entities.push({
+            ...entity,
+            offset:
+              (entity.offset || 0) +
+              currentOffset +
+              (text.length - result.text.length),
+          });
+        }
+      }
+    }
+    return { text, entities };
+  }
+
+  // 处理链接
+  if (node.type === "link") {
+    const linkText = getTextFromNode(node);
+    const url = node.url;
+
+    let entityType: TextEntityType$Input;
+
+    // 检查是否是 Telegram 用户链接
+    if (url && url.startsWith("tg://user?id=")) {
+      entityType = {
+        _: "textEntityTypeMentionName",
+        user_id: parseInt(url.split("=")[1], 10),
+      };
+    }
+    // 检查是否是 Telegram 消息链接
+    else if (url && url.startsWith("tg://openmessage?chat_id=")) {
+      let chatId = url.split("=")[1];
+      if (chatId.startsWith("-100")) {
+        chatId = chatId.substring(4);
+      }
+      entityType = {
+        _: "textEntityTypeTextUrl",
+        url: `tg://openmessage?chat_id=${chatId}`,
+      };
+    }
+    // 处理普通链接
+    else {
+      entityType = {
+        _: "textEntityTypeTextUrl",
+        url: url || "",
+      };
+    }
+
+    entities.push({
+      _: "textEntity",
+      offset: currentOffset,
+      length: linkText.length,
+      type: entityType,
+    });
+
+    return { text: linkText, entities };
+  }
+
+  // 处理行内代码
+  if (node.type === "inlineCode") {
+    entities.push({
+      _: "textEntity",
+      offset: currentOffset,
+      length: node.value.length,
+      type: { _: "textEntityTypeCode" },
+    });
+    return { text: node.value, entities };
+  }
+
+  // 处理代码块
+  if (node.type === "code") {
+    entities.push({
+      _: "textEntity",
+      offset: currentOffset,
+      length: node.value.length,
+      type: {
+        _: "textEntityTypePreCode",
+        language: node.lang || "",
+      },
+    });
+    return { text: node.value, entities };
+  }
+
+  // 处理引用块
+  if (node.type === "blockquote") {
+    const blockText = getTextFromNode(node);
+    entities.push({
+      _: "textEntity",
+      offset: currentOffset,
+      length: blockText.length,
+      type: { _: "textEntityTypeBlockQuote" },
+    });
+    return { text: blockText, entities };
+  }
+
+  // 处理加粗
+  if (node.type === "strong") {
+    const strongText = getTextFromNode(node);
+    entities.push({
+      _: "textEntity",
+      offset: currentOffset,
+      length: strongText.length,
+      type: { _: "textEntityTypeBold" },
+    });
+    return { text: strongText, entities };
+  }
+
+  // 处理斜体
+  if (node.type === "emphasis") {
+    const emphasisText = getTextFromNode(node);
+    entities.push({
+      _: "textEntity",
+      offset: currentOffset,
+      length: emphasisText.length,
+      type: { _: "textEntityTypeItalic" },
+    });
+    return { text: emphasisText, entities };
+  }
+
+  // 处理删除线
+  if (node.type === "delete") {
+    const deleteText = getTextFromNode(node);
+    entities.push({
+      _: "textEntity",
+      offset: currentOffset,
+      length: deleteText.length,
+      type: { _: "textEntityTypeStrikethrough" },
+    });
+    return { text: deleteText, entities };
+  }
+
+  // 处理其他包含子节点的元素
+  if (node.children) {
+    let offset = currentOffset;
+    for (const child of node.children) {
+      const result = processNode(child, offset);
+      text += result.text;
+      entities.push(...result.entities);
+      offset += result.text.length;
+    }
+  }
+
+  return { text, entities };
+}
+
+/**
+ * 从节点中提取纯文本内容
+ */
+function getTextFromNode(node: any): string {
+  if (node.type === "text") {
+    return node.value;
+  }
+
+  if (node.children) {
+    return node.children.map((child: any) => getTextFromNode(child)).join("");
+  }
+
+  if (node.value) {
+    return node.value;
+  }
+
+  return "";
 }
 
 /**
