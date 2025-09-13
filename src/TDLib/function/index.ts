@@ -10,8 +10,6 @@ import type {
   ChatMemberStatus,
   MessageSender,
 } from "tdlib-types";
-import { unified } from "unified";
-import remarkParse from "remark-parse";
 import { getClient } from "../index.js";
 import logger from "../../log/index.js";
 import {
@@ -28,251 +26,6 @@ const client = await getClient();
 type Td$chatPermissions = Omit<chatPermissions$Input, "_"> & {
   _?: chatPermissions$Input["_"];
 };
-
-/**
- * 将 Markdown 格式的文本解析为格式化文本
- * @param markdown - Markdown 格式的文本
- * @returns 包含格式化文本和实体信息的对象
- */
-export function parseMarkdownToFormattedText(
-  markdown: string
-): formattedText$Input {
-  const entities: textEntity$Input[] = [];
-  let plainText = "";
-
-  try {
-    // 使用 remark-parse 解析 Markdown
-    const processor = unified().use(remarkParse);
-    const tree = processor.parse(markdown);
-
-    // 遍历 AST 并构建格式化文本
-    const result = processNode(tree);
-    plainText = result.text;
-    entities.push(...result.entities);
-  } catch (error) {
-    logger.error("parseMarkdownToFormattedText 解析失败:", error);
-    // 如果解析失败，返回纯文本
-    plainText = markdown;
-  }
-
-  return {
-    _: "formattedText" as const,
-    text: plainText,
-    entities,
-  };
-}
-
-/**
- * 处理 MDAST 节点并生成格式化文本和实体
- */
-function getBlockquoteDepth(node: any): number {
-  let depth = 0;
-  let cur = node;
-  while (cur && cur.type === "blockquote") {
-    depth++;
-    const next = (cur.children || []).find((c: any) => c.type === "blockquote");
-    if (!next) break;
-    cur = next;
-  }
-  return depth;
-}
-
-function processNode(
-  node: any,
-  options?: { suppressBlockquoteWrap?: boolean }
-): {
-  text: string;
-  entities: textEntity$Input[];
-} {
-  const suppressBlockquoteWrap = options?.suppressBlockquoteWrap || false;
-  const entities: textEntity$Input[] = [];
-  let text = "";
-  // 文本节点直接返回
-  if (node.type === "text") {
-    return { text: node.value, entities: [] };
-  }
-
-  // 处理链接
-  if (node.type === "link") {
-    // 先处理子节点以支持链接内的复杂格式
-    const childResult = node.children
-      ? processNode({ type: "root", children: node.children }, options)
-      : { text: getTextFromNode(node), entities: [] };
-    const linkText = childResult.text;
-    const url = node.url;
-
-    let entityType: TextEntityType$Input;
-    if (url && url.startsWith("tg://user?id=")) {
-      entityType = {
-        _: "textEntityTypeMentionName",
-        user_id: parseInt(url.split("=")[1], 10),
-      };
-    } else if (url && url.startsWith("tg://openmessage?chat_id=")) {
-      let chatId = url.split("=")[1];
-      if (chatId.startsWith("-100")) chatId = chatId.substring(4);
-      entityType = {
-        _: "textEntityTypeTextUrl",
-        url: `tg://openmessage?chat_id=${chatId}`,
-      };
-    } else {
-      entityType = { _: "textEntityTypeTextUrl", url: url || "" };
-    }
-
-    // 创建覆盖整个链接文本的实体，偏移在父层合并时会被调整
-    entities.push({
-      _: "textEntity",
-      offset: 0,
-      length: linkText.length,
-      type: entityType,
-    });
-    // 合并子实体（如果有），它们相对于链接文本起始位置
-    for (const e of childResult.entities) entities.push({ ...e });
-
-    return { text: linkText, entities };
-  }
-
-  // 处理行内代码
-  if (node.type === "inlineCode") {
-    entities.push({
-      _: "textEntity",
-      offset: 0,
-      length: node.value.length,
-      type: { _: "textEntityTypeCode" },
-    });
-    return { text: node.value, entities };
-  }
-
-  // 处理代码块
-  if (node.type === "code") {
-    entities.push({
-      _: "textEntity",
-      offset: 0,
-      length: node.value.length,
-      type: { _: "textEntityTypePreCode", language: node.lang || "" },
-    });
-    return { text: node.value, entities };
-  }
-
-  // 处理引用块
-  if (node.type === "blockquote") {
-    const childResult = node.children
-      ? processNode(
-          { type: "root", children: node.children },
-          { suppressBlockquoteWrap: true }
-        )
-      : { text: getTextFromNode(node), entities: [] };
-    const depth = getBlockquoteDepth(node);
-    const blockType =
-      depth >= 2
-        ? "textEntityTypeExpandableBlockQuote"
-        : "textEntityTypeBlockQuote";
-    if (!suppressBlockquoteWrap) {
-      entities.push({
-        _: "textEntity",
-        offset: 0,
-        length: childResult.text.length,
-        type: { _: blockType },
-      });
-    }
-    for (const e of childResult.entities) entities.push({ ...e });
-    return { text: childResult.text, entities };
-  }
-
-  // 处理加粗
-  if (node.type === "strong") {
-    const childResult = node.children
-      ? processNode({ type: "root", children: node.children }, options)
-      : { text: getTextFromNode(node), entities: [] };
-    entities.push({
-      _: "textEntity",
-      offset: 0,
-      length: childResult.text.length,
-      type: { _: "textEntityTypeBold" },
-    });
-    for (const e of childResult.entities) entities.push({ ...e });
-    return { text: childResult.text, entities };
-  }
-
-  // 处理斜体
-  if (node.type === "emphasis") {
-    const childResult = node.children
-      ? processNode({ type: "root", children: node.children }, options)
-      : { text: getTextFromNode(node), entities: [] };
-    entities.push({
-      _: "textEntity",
-      offset: 0,
-      length: childResult.text.length,
-      type: { _: "textEntityTypeItalic" },
-    });
-    for (const e of childResult.entities) entities.push({ ...e });
-    return { text: childResult.text, entities };
-  }
-
-  // 处理删除线
-  if (node.type === "delete") {
-    const childResult = node.children
-      ? processNode({ type: "root", children: node.children }, options)
-      : { text: getTextFromNode(node), entities: [] };
-    entities.push({
-      _: "textEntity",
-      offset: 0,
-      length: childResult.text.length,
-      type: { _: "textEntityTypeStrikethrough" },
-    });
-    for (const e of childResult.entities) entities.push({ ...e });
-    return { text: childResult.text, entities };
-  }
-
-  // 任何未被上面专门处理的节点类型，若含子节点则递归处理
-  // 统一在此合并子节点：按顺序拼接子节点文本，并调整实体偏移到父级字符串位置
-  if (node.children && Array.isArray(node.children)) {
-    for (let i = 0; i < node.children.length; i++) {
-      const child = node.children[i];
-      const childResult = processNode(child, options);
-      const baseOffset = text.length; // 当前已拼接文本长度，作为子实体的基准偏移
-      text += childResult.text;
-      for (const e of childResult.entities) {
-        entities.push({ ...e, offset: (e.offset || 0) + baseOffset });
-      }
-
-      // 如果父节点是根并且子节点是段落，则在段落之间添加换行
-      if (
-        node.type === "root" &&
-        child.type === "paragraph" &&
-        i < node.children.length - 1
-      ) {
-        text += "\n";
-      }
-    }
-  }
-
-  return { text, entities };
-}
-
-// --- 开发时的快速验证函数（生产可删） ---
-export function _debug_parseSample() {
-  const markdown = `#2025年7月  [黒ネズミたち] 涅庫羅诺美子的宇宙恐怖秀 / Necronomico no Cosmic Horror Show - 11 (ABEMA 1920x1080 AVC AAC MP4)\n> [原名称]: ネクロノミ子のコズミックホラーショウ\n> [中文名]: 涅库罗诺美子的宇宙恐怖秀\n> [发布组]：#黒ネズミたち\n> [发布时间]: 2025年09月13日 08:30PM\n\n追踪标签：\n> 名称: #涅库罗诺美子的宇宙恐怖秀\n> 番剧组: #黒ネズミたち_涅库罗诺美子的宇宙恐怖秀`;
-  return parseMarkdownToFormattedText(markdown);
-}
-
-/**
- * 从节点中提取纯文本内容
- */
-function getTextFromNode(node: any): string {
-  if (node.type === "text") {
-    return node.value;
-  }
-
-  if (node.children) {
-    return node.children.map((child: any) => getTextFromNode(child)).join("");
-  }
-
-  if (node.value) {
-    return node.value;
-  }
-
-  return "";
-}
 
 /**
  * 限制用户所有权限，永久禁止其发送消息。
@@ -786,7 +539,17 @@ export async function chatoruserMdown(sender_id: MessageSender, name = false) {
   }
 }
 
-/** 权限检查 */
+/**
+ * 检查管理员状态是否包含指定的权限集合。
+ *
+ * - 当 status 为创建者时返回 true（拥有所有权限）。
+ * - 当 status 为管理员时，根据传入的 `rights` 检查对应的 `adminStatus.rights` 字段。
+ * - 当没有指定 `rights` 时，只要是管理员即返回 true。
+ *
+ * @param status - 聊天成员状态对象（可能为创建者或管理员）
+ * @param rights - 可选的权限过滤对象（只检查为 true 的权限项）
+ * @returns 如果满足权限要求则返回 true，否则返回 false
+ */
 function checkAdminStatus(
   status: ChatMemberStatus,
   rights?: Partial<chatAdministratorRights>

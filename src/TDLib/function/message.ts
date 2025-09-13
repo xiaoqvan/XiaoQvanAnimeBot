@@ -17,7 +17,7 @@ import type {
   editMessageCaption as Td$editMessageCaption,
   editMessageText as Td$editMessageText,
 } from "../types/message.js";
-import { parseMarkdownToFormattedText } from "./index.js";
+import { parseMarkdownToFormattedText } from "./parseMarkdown.js";
 const client = await getClient();
 
 /**
@@ -41,7 +41,7 @@ export async function sendMessage(chat_id: number, params: Td$sendMessage) {
     const payload: Td$sendMessageOriginal = {
       _: "sendMessage",
       chat_id,
-      message_thread_id: thread_id,
+      ...(thread_id !== undefined ? { message_thread_id: thread_id } : {}),
       ...(text !== undefined && media === undefined
         ? {
             input_message_content: {
@@ -49,7 +49,7 @@ export async function sendMessage(chat_id: number, params: Td$sendMessage) {
               text: parseMarkdownToFormattedText(text),
               link_preview_options: link_preview
                 ? { _: "linkPreviewOptions", is_disabled: link_preview }
-                : undefined,
+                : { _: "linkPreviewOptions", is_disabled: true },
             },
           }
         : {}),
