@@ -9,7 +9,6 @@ import {
 } from "../database/update.js";
 
 import { editMessageCaption, sendMessage } from "../TDLib/function/message.js";
-import { parseMarkdownToFormattedText } from "../TDLib/function/index.js";
 import { getAnimeById } from "../database/query.js";
 import { AnimeText, navmegtext } from "./text.js";
 import { getSubjectById } from "./info.js";
@@ -17,6 +16,7 @@ import { getMessageLink, getMessageLinkInfo } from "../TDLib/function/get.js";
 import { downloadFile, extractVideoMetadata } from "../function/index.js";
 
 import type { animeItem, anime as animeType } from "../types/anime.js";
+import { parseMarkdownToFormattedText } from "../TDLib/function/parseMarkdown.js";
 
 /**
  * 发送/更新 导航频道的消息

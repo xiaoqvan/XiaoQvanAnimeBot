@@ -8,8 +8,8 @@ import { updateAnimeBtdata } from "../database/update.js";
 import logger from "../log/index.js";
 import { getQBClient } from "../qBittorrent/index.js";
 import { getMessageLink } from "../TDLib/function/get.js";
-import { parseMarkdownToFormattedText } from "../TDLib/function/index.js";
 import { sendMessage } from "../TDLib/function/message.js";
+import { parseMarkdownToFormattedText } from "../TDLib/function/parseMarkdown.js";
 import type {
   RssAnimeItem,
   anime as animeType,

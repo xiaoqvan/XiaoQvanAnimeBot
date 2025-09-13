@@ -20,7 +20,7 @@ export function navmegtext(newanime: animeType) {
               ? cleanSummary.substring(0, 180) +
                 `[...详细](https://bgm.tv/subject/${newanime.id})`
               : cleanSummary;
-          return `\n\n介绍:\n>>>\n${truncatedSummary}\n<<<`;
+          return `\n\n介绍:\n>> \n${truncatedSummary}\n`;
         })()
       : "";
 
@@ -57,9 +57,9 @@ export function navmegtext(newanime: animeType) {
     const m = String(beijingTime.getMonth() + 1).padStart(2, "0");
     const d = String(beijingTime.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
-  })()})${summarySection}${resourceSection}\n\n标签:\n>>>\n${
+  })()})${summarySection}${resourceSection}\n\n标签:\n>> \n${
     newanime.tags ? formatTags(newanime.tags) : ""
-  }\n<<<`;
+  }`;
   return text;
 }
 
@@ -81,7 +81,7 @@ export function AnimeText(anime: animeType, item: animeItem) {
 > [发布组]：${formatTags(item.fansub?.map((f) => safeTag(f)) || [])}${
     item.pubDate ? `\n> [发布时间]: ${item.pubDate}` : ""
   }
-\n追踪标签：
+\n\n追踪标签：
 > 名称: #${safeTag(anime.name_cn || anime.name)}
 > 番剧组: ${item.fansub
     ?.map(
@@ -91,7 +91,7 @@ export function AnimeText(anime: animeType, item: animeItem) {
         )}`
     )
     .join(" ")}${
-    anime.navMessageLink ? ` \n[番剧信息](${anime.navMessageLink})` : ""
+    anime.navMessageLink ? ` \n\n[番剧信息](${anime.navMessageLink})` : ""
   }`;
 
   return text;
