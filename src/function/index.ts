@@ -96,10 +96,12 @@ export async function extractVideoMetadata(videoPath: string): Promise<{
 
   try {
     ffprobeStreamOutput = execSync(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of default=noprint_wrappers=1:nokey=0 "${videoPath}"`
+      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of default=noprint_wrappers=1:nokey=0 "${videoPath}"`,
+      { stdio: ["ignore", "pipe", "ignore"] }
     ).toString();
     ffprobeFormatOutput = execSync(
-      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=0 "${videoPath}"`
+      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=0 "${videoPath}"`,
+      { stdio: ["ignore", "pipe", "ignore"] }
     ).toString();
   } catch {
     throw new Error("ffprobe 获取视频信息失败");
@@ -145,7 +147,8 @@ export async function extractVideoMetadata(videoPath: string): Promise<{
   try {
     // 截取第10秒的帧作为封面
     execSync(
-      `ffmpeg -y -ss 10 -i "${videoPath}" -frames:v 1 -q:v 2 "${coverPath}"`
+      `ffmpeg -y -ss 10 -i "${videoPath}" -frames:v 1 -q:v 2 "${coverPath}"`,
+      { stdio: ["ignore", "ignore", "ignore"] }
     );
   } catch {
     throw new Error("ffmpeg 截图失败");
