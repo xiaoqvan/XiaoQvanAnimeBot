@@ -46,7 +46,7 @@ export function parseMarkdownToFormattedText(
     const tree = processor.parse(markdown);
 
     // 遍历 AST 并构建格式化文本
-    const result = processNode(tree, 0);
+    const result = processNode(tree);
     plainText = result.text;
     entities.push(...result.entities);
   } catch (error) {
@@ -65,106 +65,52 @@ export function parseMarkdownToFormattedText(
 /**
  * 处理 MDAST 节点并生成格式化文本和实体
  */
-function processNode(
-  node: any,
-  currentOffset: number
-): { text: string; entities: textEntity$Input[] } {
+function processNode(node: any): {
+  text: string;
+  entities: textEntity$Input[];
+} {
   const entities: textEntity$Input[] = [];
   let text = "";
-
+  // 文本节点直接返回
   if (node.type === "text") {
     return { text: node.value, entities: [] };
   }
 
-  if (node.type === "root") {
-    // 处理根节点的子节点
-    if (node.children) {
-      for (let i = 0; i < node.children.length; i++) {
-        const child = node.children[i];
-        const result = processNode(child, currentOffset + text.length);
-        text += result.text;
-
-        // 调整实体的偏移量
-        for (const entity of result.entities) {
-          entities.push({
-            ...entity,
-            offset:
-              (entity.offset || 0) +
-              currentOffset +
-              (text.length - result.text.length),
-          });
-        }
-
-        // 在段落之间添加换行符
-        if (child.type === "paragraph" && i < node.children.length - 1) {
-          text += "\n";
-        }
-      }
-    }
-    return { text, entities };
-  }
-
-  if (node.type === "paragraph") {
-    // 处理段落子节点
-    if (node.children) {
-      for (const child of node.children) {
-        const result = processNode(child, 0); // 在段落内重新计算偏移
-        text += result.text;
-
-        // 调整实体的偏移量到当前段落的位置
-        for (const entity of result.entities) {
-          entities.push({
-            ...entity,
-            offset:
-              (entity.offset || 0) +
-              currentOffset +
-              (text.length - result.text.length),
-          });
-        }
-      }
-    }
-    return { text, entities };
-  }
-
   // 处理链接
   if (node.type === "link") {
-    const linkText = getTextFromNode(node);
+    // 先处理子节点以支持链接内的复杂格式
+    const childResult = node.children
+      ? processNode({ type: "root", children: node.children })
+      : { text: getTextFromNode(node), entities: [] };
+    const linkText = childResult.text;
     const url = node.url;
 
     let entityType: TextEntityType$Input;
-
-    // 检查是否是 Telegram 用户链接
     if (url && url.startsWith("tg://user?id=")) {
       entityType = {
         _: "textEntityTypeMentionName",
         user_id: parseInt(url.split("=")[1], 10),
       };
-    }
-    // 检查是否是 Telegram 消息链接
-    else if (url && url.startsWith("tg://openmessage?chat_id=")) {
+    } else if (url && url.startsWith("tg://openmessage?chat_id=")) {
       let chatId = url.split("=")[1];
-      if (chatId.startsWith("-100")) {
-        chatId = chatId.substring(4);
-      }
+      if (chatId.startsWith("-100")) chatId = chatId.substring(4);
       entityType = {
         _: "textEntityTypeTextUrl",
         url: `tg://openmessage?chat_id=${chatId}`,
       };
-    }
-    // 处理普通链接
-    else {
-      entityType = {
-        _: "textEntityTypeTextUrl",
-        url: url || "",
-      };
+    } else {
+      entityType = { _: "textEntityTypeTextUrl", url: url || "" };
     }
 
+    // 创建覆盖整个链接文本的实体，偏移在父层合并时会被调整
     entities.push({
       _: "textEntity",
-      offset: currentOffset,
+      offset: 0,
       length: linkText.length,
       type: entityType,
     });
+    // 合并子实体（如果有），它们相对于链接文本起始位置
+    for (const e of childResult.entities) entities.push({ ...e });
 
     return { text: linkText, entities };
   }
@@ -173,7 +119,7 @@ function processNode(
   if (node.type === "inlineCode") {
     entities.push({
       _: "textEntity",
-      offset: currentOffset,
+      offset: 0,
       length: node.value.length,
       type: { _: "textEntityTypeCode" },
     });
@@ -184,76 +130,103 @@ function processNode(
   if (node.type === "code") {
     entities.push({
       _: "textEntity",
-      offset: currentOffset,
+      offset: 0,
       length: node.value.length,
-      type: {
-        _: "textEntityTypePreCode",
-        language: node.lang || "",
-      },
+      type: { _: "textEntityTypePreCode", language: node.lang || "" },
     });
     return { text: node.value, entities };
   }
 
   // 处理引用块
   if (node.type === "blockquote") {
-    const blockText = getTextFromNode(node);
+    const childResult = node.children
+      ? processNode({ type: "root", children: node.children })
+      : { text: getTextFromNode(node), entities: [] };
     entities.push({
       _: "textEntity",
-      offset: currentOffset,
-      length: blockText.length,
+      offset: 0,
+      length: childResult.text.length,
       type: { _: "textEntityTypeBlockQuote" },
     });
-    return { text: blockText, entities };
+    for (const e of childResult.entities) entities.push({ ...e });
+    return { text: childResult.text, entities };
   }
 
   // 处理加粗
   if (node.type === "strong") {
-    const strongText = getTextFromNode(node);
+    const childResult = node.children
+      ? processNode({ type: "root", children: node.children })
+      : { text: getTextFromNode(node), entities: [] };
     entities.push({
       _: "textEntity",
-      offset: currentOffset,
-      length: strongText.length,
+      offset: 0,
+      length: childResult.text.length,
       type: { _: "textEntityTypeBold" },
     });
-    return { text: strongText, entities };
+    for (const e of childResult.entities) entities.push({ ...e });
+    return { text: childResult.text, entities };
   }
 
   // 处理斜体
   if (node.type === "emphasis") {
-    const emphasisText = getTextFromNode(node);
+    const childResult = node.children
+      ? processNode({ type: "root", children: node.children })
+      : { text: getTextFromNode(node), entities: [] };
     entities.push({
       _: "textEntity",
-      offset: currentOffset,
-      length: emphasisText.length,
+      offset: 0,
+      length: childResult.text.length,
       type: { _: "textEntityTypeItalic" },
     });
-    return { text: emphasisText, entities };
+    for (const e of childResult.entities) entities.push({ ...e });
+    return { text: childResult.text, entities };
   }
 
   // 处理删除线
   if (node.type === "delete") {
-    const deleteText = getTextFromNode(node);
+    const childResult = node.children
+      ? processNode({ type: "root", children: node.children })
+      : { text: getTextFromNode(node), entities: [] };
     entities.push({
       _: "textEntity",
-      offset: currentOffset,
-      length: deleteText.length,
+      offset: 0,
+      length: childResult.text.length,
       type: { _: "textEntityTypeStrikethrough" },
     });
-    return { text: deleteText, entities };
+    for (const e of childResult.entities) entities.push({ ...e });
+    return { text: childResult.text, entities };
   }
 
-  // 处理其他包含子节点的元素
-  if (node.children) {
-    let offset = currentOffset;
-    for (const child of node.children) {
-      const result = processNode(child, offset);
-      text += result.text;
-      entities.push(...result.entities);
-      offset += result.text.length;
+  // 任何未被上面专门处理的节点类型，若含子节点则递归处理
+  // 统一在此合并子节点：按顺序拼接子节点文本，并调整实体偏移到父级字符串位置
+  if (node.children && Array.isArray(node.children)) {
+    for (let i = 0; i < node.children.length; i++) {
+      const child = node.children[i];
+      const childResult = processNode(child);
+      const baseOffset = text.length; // 当前已拼接文本长度，作为子实体的基准偏移
+      text += childResult.text;
+      for (const e of childResult.entities) {
+        entities.push({ ...e, offset: (e.offset || 0) + baseOffset });
+      }
+
+      // 如果父节点是根并且子节点是段落，则在段落之间添加换行
+      if (
+        node.type === "root" &&
+        child.type === "paragraph" &&
+        i < node.children.length - 1
+      ) {
+        text += "\n";
+      }
     }
   }
 
   return { text, entities };
+}
+
+// --- 开发时的快速验证函数（生产可删） ---
+export function _debug_parseSample() {
+  const markdown = `#2025年7月  [黒ネズミたち] 涅庫羅诺美子的宇宙恐怖秀 / Necronomico no Cosmic Horror Show - 11 (ABEMA 1920x1080 AVC AAC MP4)\n> [原名称]: ネクロノミ子のコズミックホラーショウ\n> [中文名]: 涅库罗诺美子的宇宙恐怖秀\n> [发布组]：#黒ネズミたち\n> [发布时间]: 2025年09月13日 08:30PM\n\n追踪标签：\n> 名称: #涅库罗诺美子的宇宙恐怖秀\n> 番剧组: #黒ネズミたち_涅库罗诺美子的宇宙恐怖秀`;
+  return parseMarkdownToFormattedText(markdown);
 }
 
 /**
