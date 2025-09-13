@@ -65,10 +65,26 @@ export function parseMarkdownToFormattedText(
 /**
  * 处理 MDAST 节点并生成格式化文本和实体
  */
-function processNode(node: any): {
+function getBlockquoteDepth(node: any): number {
+  let depth = 0;
+  let cur = node;
+  while (cur && cur.type === "blockquote") {
+    depth++;
+    const next = (cur.children || []).find((c: any) => c.type === "blockquote");
+    if (!next) break;
+    cur = next;
+  }
+  return depth;
+}
+
+function processNode(
+  node: any,
+  options?: { suppressBlockquoteWrap?: boolean }
+): {
   text: string;
   entities: textEntity$Input[];
 } {
+  const suppressBlockquoteWrap = options?.suppressBlockquoteWrap || false;
   const entities: textEntity$Input[] = [];
   let text = "";
   // 文本节点直接返回
@@ -80,7 +96,7 @@ function processNode(node: any): {
   if (node.type === "link") {
     // 先处理子节点以支持链接内的复杂格式
     const childResult = node.children
-      ? processNode({ type: "root", children: node.children })
+      ? processNode({ type: "root", children: node.children }, options)
       : { text: getTextFromNode(node), entities: [] };
     const linkText = childResult.text;
     const url = node.url;
@@ -140,14 +156,24 @@ function processNode(node: any): {
   // 处理引用块
   if (node.type === "blockquote") {
     const childResult = node.children
-      ? processNode({ type: "root", children: node.children })
+      ? processNode(
+          { type: "root", children: node.children },
+          { suppressBlockquoteWrap: true }
+        )
       : { text: getTextFromNode(node), entities: [] };
-    entities.push({
-      _: "textEntity",
-      offset: 0,
-      length: childResult.text.length,
-      type: { _: "textEntityTypeBlockQuote" },
-    });
+    const depth = getBlockquoteDepth(node);
+    const blockType =
+      depth >= 2
+        ? "textEntityTypeExpandableBlockQuote"
+        : "textEntityTypeBlockQuote";
+    if (!suppressBlockquoteWrap) {
+      entities.push({
+        _: "textEntity",
+        offset: 0,
+        length: childResult.text.length,
+        type: { _: blockType },
+      });
+    }
     for (const e of childResult.entities) entities.push({ ...e });
     return { text: childResult.text, entities };
   }
@@ -155,7 +181,7 @@ function processNode(node: any): {
   // 处理加粗
   if (node.type === "strong") {
     const childResult = node.children
-      ? processNode({ type: "root", children: node.children })
+      ? processNode({ type: "root", children: node.children }, options)
       : { text: getTextFromNode(node), entities: [] };
     entities.push({
       _: "textEntity",
@@ -170,7 +196,7 @@ function processNode(node: any): {
   // 处理斜体
   if (node.type === "emphasis") {
     const childResult = node.children
-      ? processNode({ type: "root", children: node.children })
+      ? processNode({ type: "root", children: node.children }, options)
       : { text: getTextFromNode(node), entities: [] };
     entities.push({
       _: "textEntity",
@@ -185,7 +211,7 @@ function processNode(node: any): {
   // 处理删除线
   if (node.type === "delete") {
     const childResult = node.children
-      ? processNode({ type: "root", children: node.children })
+      ? processNode({ type: "root", children: node.children }, options)
       : { text: getTextFromNode(node), entities: [] };
     entities.push({
       _: "textEntity",
@@ -202,7 +228,7 @@ function processNode(node: any): {
   if (node.children && Array.isArray(node.children)) {
     for (let i = 0; i < node.children.length; i++) {
       const child = node.children[i];
-      const childResult = processNode(child);
+      const childResult = processNode(child, options);
       const baseOffset = text.length; // 当前已拼接文本长度，作为子实体的基准偏移
       text += childResult.text;
       for (const e of childResult.entities) {
