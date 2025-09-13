@@ -65,9 +65,9 @@ export function navmegtext(newanime: animeType) {
 
 /**
  * 生成动漫信息文本
- * @param {object} anime - 数据库中动漫详细信息
- * @param {object} item - 动漫在BT站中的信息
- * @returns {string} - 格式化后的动漫信息文本
+ * @param anime - 数据库中动漫详细信息
+ * @param item - 动漫在BT站中的信息
+ * @returns - 格式化后的动漫信息文本
  */
 export function AnimeText(anime: animeType, item: animeItem) {
   const nsfwTag = anime.r18 === true ? "#NSFW " : "";
@@ -93,6 +93,7 @@ export function AnimeText(anime: animeType, item: animeItem) {
     .join(" ")}${
     anime.navMessageLink ? ` \n[番剧信息](${anime.navMessageLink})` : ""
   }`;
+
   return text;
 }
 
