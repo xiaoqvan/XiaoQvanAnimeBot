@@ -5,6 +5,7 @@ import type {
   sendMessageAlbum as Td$sendMessageAlbumOriginal,
   editMessageCaption as Td$editMessageCaptionOriginal,
   editMessageText as Td$editMessageTextOriginal,
+  editMessageMedia as Td$editMessageMediaOriginal,
   InputMessageContent$Input,
 } from "tdlib-types";
 import type {
@@ -16,6 +17,7 @@ import type {
   fileMessage,
   editMessageCaption as Td$editMessageCaption,
   editMessageText as Td$editMessageText,
+  editMessageMedia as Td$editMessageMedia,
 } from "../types/message.js";
 import { parseMarkdownToFormattedText } from "./parseMarkdown.js";
 const client = await getClient();
@@ -282,6 +284,29 @@ export async function editMessageText(params: Td$editMessageText) {
     return result;
   } catch (error) {
     logger.error("editMessage: 编辑消息失败", error);
+    throw new Error("编辑消息失败", { cause: error });
+  }
+}
+
+export async function editMessageMedia(params: Td$editMessageMedia) {
+  const { chat_id, message_id, text, media, invoke } = params;
+  const payload: Td$editMessageMediaOriginal = {
+    _: "editMessageMedia",
+    chat_id,
+    message_id,
+    input_message_content: media
+      ? buildInputMessageContent(text, media)
+      : undefined,
+  };
+
+  try {
+    const result = await client.invoke({
+      ...payload,
+      ...invoke,
+    });
+    return result;
+  } catch (error) {
+    logger.error("editMessageMedia: 编辑消息失败", error);
     throw new Error("编辑消息失败", { cause: error });
   }
 }

@@ -35,7 +35,7 @@ export default async function updateNewCallbackQuery(
   const [command, params] = raw.split("?");
   try {
     switch (command) {
-      case "T_anime": {
+      case "Y_anime": {
         await trueAnime(chat_id, sender_user_id, message_id, queryId, raw);
         break;
       }

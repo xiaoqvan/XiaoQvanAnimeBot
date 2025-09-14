@@ -3,6 +3,7 @@ import type {
   sendMessageAlbum as Td$sendMessageAlbumOriginal,
   editMessageCaption as Td$editMessageCaptionOriginal,
   editMessageText as Td$editMessageTextOriginal,
+  editMessageMedia as Td$editMessageMediaOriginal,
 } from "tdlib-types";
 
 export type Td$sendMessage = Omit<Td$sendMessageOriginal, "_"> & {
@@ -19,6 +20,10 @@ export type Td$editMessageCaption = Omit<Td$editMessageCaptionOriginal, "_"> & {
 
 export type Td$editMessageText = Omit<Td$editMessageTextOriginal, "_"> & {
   _?: Td$editMessageTextOriginal["_"];
+};
+
+export type Td$editMessageMedia = Omit<Td$editMessageMediaOriginal, "_"> & {
+  _?: Td$editMessageMediaOriginal["_"];
 };
 
 export type inputFile = {
@@ -153,4 +158,17 @@ export type editMessageText = {
   readonly link_preview?: boolean;
   /** 原始调用方法 */
   readonly invoke?: Td$editMessageText;
+};
+
+export type editMessageMedia = {
+  /** 对话 ID */
+  readonly chat_id: number;
+  /** 消息 ID */
+  readonly message_id: number;
+  /** 新的消息文本 */
+  readonly text?: string;
+  /** 原始调用方法 */
+  readonly invoke?: Td$editMessageMedia;
+  /** 媒体内容 */
+  readonly media?: photoMessage | videoMessage | audioMessage | fileMessage;
 };

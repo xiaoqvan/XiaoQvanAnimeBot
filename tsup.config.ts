@@ -1,18 +1,28 @@
 import { defineConfig } from "tsup";
-import dotenv from "dotenv";
 import fs from "fs/promises";
 import path from "path";
+import dotenv from "dotenv";
 
 const mergedEnv: Record<string, string> = dotenv.config().parsed ?? {};
+
+function toUnicodeEscape(str: string) {
+  return str
+    .split("")
+    .map((c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`)
+    .join("");
+}
 
 const defineEnv = Object.fromEntries(
   Object.entries(mergedEnv).map(([k, v]) => [
     `process.env.${k}`,
-    JSON.stringify(v ?? ""),
+    JSON.stringify(toUnicodeEscape(v ?? "")),
   ])
 );
 
 async function modifyPackageJson() {
+  // eslint-disable-next-line no-console
+  console.log("🛠️  正在生成生产环境的 package.json...");
+
   const filePath = path.resolve("package.json");
   const newFilePath = path.resolve("dist/package.json");
 
@@ -33,6 +43,7 @@ async function modifyPackageJson() {
   // 写入新的 package.json
   await fs.writeFile(newFilePath, JSON.stringify(pkg, null, 2), "utf-8");
 
+  // eslint-disable-next-line no-console
   console.log(`✅ 已生成 ${newFilePath}`);
 }
 

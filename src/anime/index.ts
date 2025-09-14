@@ -1,15 +1,29 @@
-import { addCacheItem, saveAnime } from "../database/create.js";
+import logger from "../log/index.js";
+
 import {
   getTagExcludeList,
   hasAnimeSend,
   hasTorrentTitle,
 } from "../database/query.js";
+
+import {
+  animeinfo,
+  fetchBangumiTags,
+  fetchBangumiTeam,
+  fetchBangumiTorrent,
+} from "./info.js";
+
+import { groupRules } from "./groupRules.js";
 import { updateAnimeBtdata } from "../database/update.js";
-import logger from "../log/index.js";
+import { addCacheItem, saveAnime } from "../database/create.js";
 import { getQBClient } from "../qBittorrent/index.js";
 import { getMessageLink } from "../TDLib/function/get.js";
 import { sendMessage } from "../TDLib/function/message.js";
 import { parseMarkdownToFormattedText } from "../TDLib/function/parseMarkdown.js";
+import { fetchMergedRss } from "./rss/index.js";
+import { sendMegToAnime, sendMegToNavAnime } from "./sendAnime.js";
+import { downloadTorrentFromUrl } from "./torrent.js";
+
 import type {
   RssAnimeItem,
   anime as animeType,
@@ -17,16 +31,7 @@ import type {
   bangumiAnime,
   infobox,
 } from "../types/anime.js";
-import { groupRules } from "./groupRules.js";
-import {
-  animeinfo,
-  fetchBangumiTags,
-  fetchBangumiTeam,
-  fetchBangumiTorrent,
-} from "./info.js";
-import { fetchMergedRss } from "./rss/index.js";
-import { sendMegToAnime, sendMegToNavAnime } from "./sendAnime.js";
-import { downloadTorrentFromUrl } from "./torrent.js";
+
 const QBclient = await getQBClient();
 
 export async function anime() {

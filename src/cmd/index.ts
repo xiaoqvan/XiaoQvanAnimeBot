@@ -5,6 +5,7 @@ import handleSearchAnime from "./searchanime.js";
 import handleHelp from "./help.js";
 import logger from "../log/index.js";
 import { ErrorHandler } from "../function/index.js";
+import { sendMessage } from "../TDLib/function/message.js";
 
 /**
  * 处理命令
@@ -94,7 +95,7 @@ export async function BotCommand(message: messageType) {
       //       },
       //       input_message_content: {
       //         _: "inputMessageText",
-      //         text: parseMarkdownToFormattedText(
+      //         text:  (
       //           "欢迎使用xiaoqvan的Bot！\n\n使用 /help 可以获取帮助"
       //         ),
       //         link_preview_options: {
@@ -164,4 +165,29 @@ export async function BotCommand(message: messageType) {
 }
 async function test(message: messageType, commandParts: string[]) {
   console.log("测试命令处理器被调用", message, commandParts);
+  sendMessage(message.chat_id, {
+    invoke: {
+      _: "sendMessage",
+      chat_id: -1003040986800,
+      message_thread_id: 4194304,
+      input_message_content: {
+        _: "inputMessageText",
+        text: {
+          _: "formattedText",
+          text:
+            "错误信息:\n" +
+            "name: Error\n" +
+            "message: 发送消息失败\n" +
+            "stack: Error: 发送消息失败\n" +
+            "at f (file:///root/XiaoQvanAnimeBot/src/TDLib/function/message.ts:92:11)\n" +
+            "at ae (file:///root/XiaoQvanAnimeBot/src/anime/sendAnime.ts:170:24)\n" +
+            "at On (file:///root/XiaoQvanAnimeBot/src/anime/index.ts:432:20)\n" +
+            "at Pn (file:///root/XiaoQvanAnimeBot/src/anime/index.ts:229:5)\n" +
+            "at Nn (file:///root/XiaoQvanAnimeBot/src/anime/index.ts:213:3)",
+          entities: [],
+        },
+        link_preview_options: undefined,
+      },
+    },
+  });
 }
