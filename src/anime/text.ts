@@ -16,8 +16,8 @@ export function navmegtext(newanime: animeType) {
       ? (() => {
           const cleanSummary = newanime.summary.replace(/\\n/g, "\n");
           const truncatedSummary =
-            cleanSummary.length > 180
-              ? cleanSummary.substring(0, 180) +
+            cleanSummary.length > 100
+              ? cleanSummary.substring(0, 100) +
                 `[...详细](https://bgm.tv/subject/${newanime.id})`
               : cleanSummary;
           return `\n\n介绍:\n>> \n${truncatedSummary}\n`;
