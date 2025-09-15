@@ -100,9 +100,7 @@ export async function getCacheItemById(id: number) {
   }
   try {
     const cacheItem = await db
-      .collection<{ id: number; item: animeItem; createdAt: Date }>(
-        "cacheAnime"
-      )
+      .collection<{ id: number; item: animeItem; createdAt: Date }>("cacheItem")
       .findOne({ id });
     return cacheItem?.item;
   } catch (error) {
