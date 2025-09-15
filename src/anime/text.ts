@@ -14,13 +14,15 @@ export function navmegtext(newanime: animeType) {
   const summarySection =
     newanime.summary && newanime.summary.trim()
       ? (() => {
-          const cleanSummary = newanime.summary.replace(/\\n/g, "\n");
+          const cleanSummary = newanime.summary
+            .replace(/\\n/g, "\n")
+            .replace(/\n{2,}/g, "\n");
           const truncatedSummary =
             cleanSummary.length > 100
               ? cleanSummary.substring(0, 100) +
                 `[...详细](https://bgm.tv/subject/${newanime.id})`
               : cleanSummary;
-          return `\n\n介绍:\n>> ${truncatedSummary}`;
+          return `\n\n介绍:\n>> ${truncatedSummary.replace(/\n/g, "\n>> ")}`;
         })()
       : "";
 
