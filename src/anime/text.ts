@@ -20,14 +20,14 @@ export function navmegtext(newanime: animeType) {
               ? cleanSummary.substring(0, 100) +
                 `[...详细](https://bgm.tv/subject/${newanime.id})`
               : cleanSummary;
-          return `\n\n介绍:\n>> \n${truncatedSummary}\n`;
+          return `\n\n介绍:\n>> ${truncatedSummary}`;
         })()
       : "";
 
   // 判断btdata是否存在且有效
   const resourceSection =
     newanime.btdata && typeof newanime.btdata === "object"
-      ? `\n\n资源:\n${formatBtData(newanime.btdata)}`
+      ? `\n\n资源:> ${formatBtData(newanime.btdata)}`
       : "";
 
   const titleTag =
@@ -35,13 +35,13 @@ export function navmegtext(newanime: animeType) {
     (newanime.airingStart
       ? newanime.airingStart.replace(/(\d{4})年(\d{1,2})月.*/, "$1年$2月")
       : "");
-  const text = `${titleTag}  ${
+  const text = `${titleTag} ${
     newanime.name || newanime.name_cn
   }\n> [中文名称]: ${newanime.name_cn}\n> [本季话数]:${
     newanime.episode || "未知"
-  }\n> [放送开始]: ${newanime.airingStart || "未知"}\n> [放送星期]: ${
+  }\n[放送开始]: ${newanime.airingStart || "未知"}\n> [放送星期]: ${
     newanime.airingDay || "未知"
-  }\n> [动漫评分]: [${newanime.score || "未知"}](https://bgm.tv/subject/${
+  }\n[动漫评分]: [${newanime.score || "未知"}](https://bgm.tv/subject/${
     newanime.id
   }/stats) (${(() => {
     // 获取当前北京时间
@@ -57,7 +57,7 @@ export function navmegtext(newanime: animeType) {
     const m = String(beijingTime.getMonth() + 1).padStart(2, "0");
     const d = String(beijingTime.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
-  })()})${summarySection}${resourceSection}\n\n标签:\n>> \n${
+  })()})${summarySection}${resourceSection}\n\n标签:\n>> ${
     newanime.tags ? formatTags(newanime.tags) : ""
   }`;
   return text;
@@ -140,7 +140,7 @@ function formatBtData(btdata: BtDataType) {
         .join(" | ");
       return `> [#${safeTag(fansub)}]\n> ${links}`;
     })
-    .join("\n> \n"); // 每个字幕组之间空一行更清晰，并保持引用格式
+    .join("\n"); // 每个字幕组之间空一行更清晰
 }
 
 function formatTags(tags: string[]) {

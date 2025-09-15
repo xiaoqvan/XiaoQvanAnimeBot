@@ -23,17 +23,8 @@ export function parseMarkdownToFormattedText(
     const processor = unified().use(remarkParse);
     const tree = processor.parse(markdown);
 
-    // 如果包含列表(list)节点，则保持原样返回（不做格式实体处理）
-    if (containsListNode(tree)) {
-      return {
-        _: "formattedText" as const,
-        text: markdown,
-        entities: [],
-      };
-    }
-
     // 遍历 AST 并构建格式化文本
-    const result = processNode(tree);
+    const result = processNode(tree, { depth: 0 });
     plainText = result.text;
     entities.push(...result.entities);
   } catch (error) {
@@ -49,27 +40,7 @@ export function parseMarkdownToFormattedText(
   };
 }
 
-function containsListNode(node: any): boolean {
-  if (!node) return false;
-  if (node.type === "list") return true;
-  if (Array.isArray(node.children)) {
-    return node.children.some((c: any) => containsListNode(c));
-  }
-  return false;
-}
-
-function getBlockquoteDepth(node: any): number {
-  if (!node || node.type !== "blockquote") return 0;
-  if (!Array.isArray(node.children) || node.children.length === 0) return 1;
-  let maxChildDepth = 0;
-  for (const child of node.children) {
-    if (child.type === "blockquote") {
-      const d = getBlockquoteDepth(child);
-      if (d > maxChildDepth) maxChildDepth = d;
-    }
-  }
-  return 1 + maxChildDepth;
-}
+// 列表不参与实体格式化，仅按纯文本重建
 
 /**
  * 递归处理 MDAST 节点，将节点及其子节点转换为纯文本和 TDLib 文本实体列表。
@@ -84,12 +55,12 @@ function getBlockquoteDepth(node: any): number {
 
 function processNode(
   node: any,
-  options?: { suppressBlockquoteWrap?: boolean }
+  options?: { depth?: number }
 ): {
   text: string;
   entities: textEntity$Input[];
 } {
-  const suppressBlockquoteWrap = options?.suppressBlockquoteWrap || false;
+  const depth = options?.depth ?? 0;
   const entities: textEntity$Input[] = [];
   let text = "";
   if (node.type === "text") {
@@ -152,27 +123,118 @@ function processNode(
   }
 
   if (node.type === "blockquote") {
-    const childResult = node.children
-      ? processNode(
-          { type: "root", children: node.children },
-          { suppressBlockquoteWrap: true }
-        )
-      : { text: getTextFromNode(node), entities: [] };
-    const depth = getBlockquoteDepth(node);
-    const blockType =
-      depth >= 2
-        ? "textEntityTypeExpandableBlockQuote"
-        : "textEntityTypeBlockQuote";
-    if (!suppressBlockquoteWrap) {
+    // 需求：外层实体只包第一行（或直到嵌套 blockquote），嵌套引用 + 紧随其后的非空行并入 expandable。
+    if (!Array.isArray(node.children) || node.children.length === 0) {
+      return { text: "", entities: [] };
+    }
+    // 将子节点解析为纯文本片段（逐节点）
+    const parts: {
+      text: string;
+      entities: textEntity$Input[];
+      type: string;
+    }[] = [];
+    for (const ch of node.children) {
+      const r = processNode(ch, { depth: depth + 1 });
+      parts.push({ text: r.text, entities: r.entities, type: ch.type });
+    }
+    // 合成时用换行连接
+    const joined = parts.map((p) => p.text).join("\n");
+    // 查找第一段文本（外层）与后续第一段嵌套 blockquote 起点
+    let firstNestedIndex = parts.findIndex((p) => p.type === "blockquote");
+    if (firstNestedIndex === -1) firstNestedIndex = parts.length; // 无嵌套
+    // 外层包裹文本长度：合并 firstNestedIndex 之前的片段 + 中间换行
+    let outerLength = 0;
+    for (let i = 0; i < firstNestedIndex; i++) {
+      outerLength += parts[i].text.length;
+      if (i < firstNestedIndex - 1) outerLength += 1; // 换行
+    }
+    if (outerLength > 0) {
       entities.push({
         _: "textEntity",
         offset: 0,
-        length: childResult.text.length,
-        type: { _: blockType },
+        length: outerLength,
+        type: {
+          _:
+            depth + 1 >= 2
+              ? "textEntityTypeExpandableBlockQuote"
+              : "textEntityTypeBlockQuote",
+        },
       });
     }
-    for (const e of childResult.entities) entities.push({ ...e });
-    return { text: childResult.text, entities };
+    // 处理嵌套部分：将每个嵌套 blockquote 片段转换为 expandable，并把其后连续的非空普通行（不是 blockquote）并入同一个实体
+    let cursorOffset = 0;
+    // 预计算每个 part 在 joined 中的起始 offset
+    const offsets: number[] = [];
+    for (let i = 0; i < parts.length; i++) {
+      offsets.push(cursorOffset);
+      cursorOffset += parts[i].text.length;
+      if (i < parts.length - 1) cursorOffset += 1; // 换行
+    }
+    for (let i = firstNestedIndex; i < parts.length; i++) {
+      if (parts[i].type === "blockquote") {
+        let startOffset = offsets[i];
+        let length = parts[i].text.length;
+        let j = i + 1;
+        while (
+          j < parts.length &&
+          parts[j].type !== "blockquote" &&
+          parts[j].text.trim() !== ""
+        ) {
+          // 加上换行 + 后续文本
+          length += 1 + parts[j].text.length;
+          j++;
+        }
+        entities.push({
+          _: "textEntity",
+          offset: startOffset,
+          length,
+          type: { _: "textEntityTypeExpandableBlockQuote" },
+        });
+        i = j - 1;
+      }
+    }
+    // 子实体合并（偏移修正）
+    for (let i = 0; i < parts.length; i++) {
+      const base = offsets[i];
+      for (const e of parts[i].entities) {
+        const t = (e as any).type;
+        // 过滤掉子 blockquote 自带的包裹实体，防止重复
+        if (
+          t &&
+          (t._ === "textEntityTypeBlockQuote" ||
+            t._ === "textEntityTypeExpandableBlockQuote")
+        )
+          continue;
+        entities.push({ ...e, offset: (e.offset || 0) + base });
+      }
+    }
+    // 去重（相同 offset/length/type）
+    const uniq: textEntity$Input[] = [];
+    const seen = new Set<string>();
+    for (const e of entities) {
+      const key = `${e.offset}|${e.length}|${(e as any).type._}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniq.push(e);
+      }
+    }
+    return { text: joined, entities: uniq };
+  }
+
+  if (node.type === "list") {
+    if (!Array.isArray(node.children)) return { text: "", entities: [] };
+    const ordered = !!node.ordered;
+    const start = typeof node.start === "number" ? node.start : 1;
+    let index = 0;
+    const lines: string[] = [];
+    for (const li of node.children) {
+      if (li.type !== "listItem") continue;
+      const raw = getTextFromNode(li).trim();
+      const prefix = ordered ? `${start + index}. ` : "- ";
+      lines.push(prefix + raw);
+      index++;
+    }
+    return { text: lines.join("\n"), entities: [] };
   }
 
   if (node.type === "strong") {
@@ -220,7 +282,7 @@ function processNode(
   if (node.children && Array.isArray(node.children)) {
     for (let i = 0; i < node.children.length; i++) {
       const child = node.children[i];
-      const childResult = processNode(child, options);
+      const childResult = processNode(child, { depth });
       const baseOffset = text.length;
       text += childResult.text;
       for (const e of childResult.entities) {
