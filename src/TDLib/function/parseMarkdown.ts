@@ -23,6 +23,15 @@ export function parseMarkdownToFormattedText(
     const processor = unified().use(remarkParse);
     const tree = processor.parse(markdown);
 
+    // 如果包含列表(list)节点，则保持原样返回（不做格式实体处理）
+    if (containsListNode(tree)) {
+      return {
+        _: "formattedText" as const,
+        text: markdown,
+        entities: [],
+      };
+    }
+
     // 遍历 AST 并构建格式化文本
     const result = processNode(tree);
     plainText = result.text;
@@ -40,16 +49,26 @@ export function parseMarkdownToFormattedText(
   };
 }
 
-function getBlockquoteDepth(node: any): number {
-  let depth = 0;
-  let cur = node;
-  while (cur && cur.type === "blockquote") {
-    depth++;
-    const next = (cur.children || []).find((c: any) => c.type === "blockquote");
-    if (!next) break;
-    cur = next;
+function containsListNode(node: any): boolean {
+  if (!node) return false;
+  if (node.type === "list") return true;
+  if (Array.isArray(node.children)) {
+    return node.children.some((c: any) => containsListNode(c));
   }
-  return depth;
+  return false;
+}
+
+function getBlockquoteDepth(node: any): number {
+  if (!node || node.type !== "blockquote") return 0;
+  if (!Array.isArray(node.children) || node.children.length === 0) return 1;
+  let maxChildDepth = 0;
+  for (const child of node.children) {
+    if (child.type === "blockquote") {
+      const d = getBlockquoteDepth(child);
+      if (d > maxChildDepth) maxChildDepth = d;
+    }
+  }
+  return 1 + maxChildDepth;
 }
 
 /**
@@ -207,13 +226,13 @@ function processNode(
       for (const e of childResult.entities) {
         entities.push({ ...e, offset: (e.offset || 0) + baseOffset });
       }
-
-      if (
-        node.type === "root" &&
-        child.type === "paragraph" &&
-        i < node.children.length - 1
-      ) {
-        text += "\n";
+      if (node.type === "root" && i < node.children.length - 1) {
+        const next = node.children[i + 1];
+        // 使用 position 信息计算应保留的空行数
+        const lineBreaks = computeLineBreaksBetween(child, next);
+        if (lineBreaks > 0) {
+          text += "\n".repeat(lineBreaks);
+        }
       }
     }
   }
@@ -243,4 +262,27 @@ function getTextFromNode(node: any): string {
   }
 
   return "";
+}
+
+function isBlockLevel(node: any): boolean {
+  return [
+    "paragraph",
+    "code",
+    "blockquote",
+    "heading",
+    "thematicBreak",
+    "list",
+  ].includes(node?.type);
+}
+
+function computeLineBreaksBetween(a: any, b: any): number {
+  if (!a || !b) return 1;
+  if (!isBlockLevel(a) || !isBlockLevel(b)) return 1; // 默认至少 1 个换行
+  const aEnd = a.position?.end?.line;
+  const bStart = b.position?.start?.line;
+  if (!aEnd || !bStart) return 1;
+  const gap = bStart - aEnd; // 行号差
+  if (gap <= 1) return 1; // 相邻行 => 单换行
+  // gap=2 => 一行空行 => 2 个 \n (上一段结束换行 + 空行)，这里我们输出 gap-0 (经验值调整)
+  return gap - 0; // 直接返回差值，保证多空行保留
 }
