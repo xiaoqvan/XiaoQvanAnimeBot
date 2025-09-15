@@ -5,7 +5,13 @@ import type {
 } from "tdlib-types";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
+import type { Root, Content } from "mdast";
 import logger from "../../log/index.ts";
+
+interface ParseContext {
+  plainText: string;
+  entities: textEntity$Input[];
+}
 
 /**
  * 将 Markdown 格式的文本解析为格式化文本
@@ -15,336 +21,338 @@ import logger from "../../log/index.ts";
 export function parseMarkdownToFormattedText(
   markdown: string
 ): formattedText$Input {
-  const entities: textEntity$Input[] = [];
-  let plainText = "";
-
   try {
-    // 使用 remark-parse 解析 Markdown
+    // 解析 Markdown 为 AST
     const processor = unified().use(remarkParse);
-    const tree = processor.parse(markdown);
+    const ast = processor.parse(markdown) as Root;
 
-    // 遍历 AST 并构建格式化文本
-    const result = processNode(tree, { depth: 0 });
-    plainText = result.text;
-    entities.push(...result.entities);
+    const context: ParseContext = {
+      plainText: "",
+      entities: [],
+    };
+
+    // 遍历 AST 节点并构建格式化文本
+    processNodes(ast.children, context);
+
+    return {
+      _: "formattedText" as const,
+      text: context.plainText,
+      entities: context.entities,
+    };
   } catch (error) {
-    logger.error("parseMarkdownToFormattedText 解析失败:", error);
-    // 如果解析失败，返回纯文本
-    plainText = markdown;
+    logger.error("解析 Markdown 失败:", error);
+    return {
+      _: "formattedText" as const,
+      text: markdown,
+      entities: [],
+    };
+  }
+}
+
+/**
+ * 处理 AST 节点数组
+ */
+function processNodes(nodes: Content[], context: ParseContext): void {
+  for (const node of nodes) {
+    processNode(node, context);
+  }
+}
+
+/**
+ * 处理单个 AST 节点
+ */
+function processNode(node: Content, context: ParseContext): void {
+  switch (node.type) {
+    case "heading":
+      processHeading(node, context);
+      break;
+    case "blockquote":
+      processBlockquote(node, context);
+      break;
+    case "paragraph":
+      processParagraph(node, context);
+      break;
+    case "text":
+      processText(node, context);
+      break;
+    case "link":
+      processLink(node, context);
+      break;
+    case "strong":
+      processStrong(node, context);
+      break;
+    case "emphasis":
+      processEmphasis(node, context);
+      break;
+    case "code":
+      processCode(node, context);
+      break;
+    case "inlineCode":
+      processInlineCode(node, context);
+      break;
+    case "list":
+      processList(node, context);
+      break;
+    case "thematicBreak":
+      processThematicBreak(node, context);
+      break;
+    default:
+      // 对于未处理的节点类型，递归处理子节点
+      if ("children" in node && Array.isArray(node.children)) {
+        processNodes(node.children as Content[], context);
+      }
+      break;
+  }
+}
+
+/**
+ * 处理标题节点
+ */
+function processHeading(node: any, context: ParseContext): void {
+  const startOffset = context.plainText.length;
+
+  // 处理标题内容
+  if (node.children) {
+    processNodes(node.children, context);
   }
 
-  return {
-    _: "formattedText" as const,
-    text: plainText,
-    entities,
+  const endOffset = context.plainText.length;
+
+  // 添加标题实体
+  context.entities.push({
+    _: "textEntity",
+    offset: startOffset,
+    length: endOffset - startOffset,
+    type: {
+      _: "textEntityTypeBold",
+    },
+  });
+
+  context.plainText += "\n";
+}
+
+/**
+ * 处理引用块节点
+ */
+function processBlockquote(node: any, context: ParseContext, depth = 1): void {
+  const startOffset = context.plainText.length;
+
+  // 收集引用内容
+  const tempContext: ParseContext = {
+    plainText: "",
+    entities: [],
   };
-}
-
-// 列表不参与实体格式化，仅按纯文本重建
-
-/**
- * 递归处理 MDAST 节点，将节点及其子节点转换为纯文本和 TDLib 文本实体列表。
- *
- * - 支持链接、行内代码、代码块、引用块、加粗、斜体、删除线等常见 Markdown 节点。
- * - 返回的实体的偏移量为相对于返回文本的起始位置（上层调用会在合并时调整偏移）。
- *
- * @param node - MDAST 节点或根节点
- * @param options.suppressBlockquoteWrap - 当为 true 时，禁止为引用块自动添加包裹实体（用于嵌套引用合并）
- * @returns 对象，包含解析后的 `text` 和 `entities`（用于 TDLib 的 `formattedText`）
- */
-
-function processNode(
-  node: any,
-  options?: { depth?: number }
-): {
-  text: string;
-  entities: textEntity$Input[];
-} {
-  const depth = options?.depth ?? 0;
-  const entities: textEntity$Input[] = [];
-  let text = "";
-  if (node.type === "text") {
-    return { text: node.value, entities: [] };
-  }
-
-  if (node.type === "link") {
-    const childResult = node.children
-      ? processNode({ type: "root", children: node.children }, options)
-      : { text: getTextFromNode(node), entities: [] };
-    const linkText = childResult.text;
-    const url = node.url;
-
-    let entityType: TextEntityType$Input;
-    if (url && url.startsWith("tg://user?id=")) {
-      entityType = {
-        _: "textEntityTypeMentionName",
-        user_id: parseInt(url.split("=")[1], 10),
-      };
-    } else if (url && url.startsWith("tg://openmessage?chat_id=")) {
-      let chatId = url.split("=")[1];
-      if (chatId.startsWith("-100")) chatId = chatId.substring(4);
-      entityType = {
-        _: "textEntityTypeTextUrl",
-        url: `tg://openmessage?chat_id=${chatId}`,
-      };
-    } else {
-      entityType = { _: "textEntityTypeTextUrl", url: url || "" };
-    }
-
-    entities.push({
-      _: "textEntity",
-      offset: 0,
-      length: linkText.length,
-      type: entityType,
-    });
-    for (const e of childResult.entities) entities.push({ ...e });
-
-    return { text: linkText, entities };
-  }
-
-  if (node.type === "inlineCode") {
-    entities.push({
-      _: "textEntity",
-      offset: 0,
-      length: node.value.length,
-      type: { _: "textEntityTypeCode" },
-    });
-    return { text: node.value, entities };
-  }
-
-  if (node.type === "code") {
-    entities.push({
-      _: "textEntity",
-      offset: 0,
-      length: node.value.length,
-      type: { _: "textEntityTypePreCode", language: node.lang || "" },
-    });
-    return { text: node.value, entities };
-  }
-
-  if (node.type === "blockquote") {
-    // 需求：外层实体只包第一行（或直到嵌套 blockquote），嵌套引用 + 紧随其后的非空行并入 expandable。
-    if (!Array.isArray(node.children) || node.children.length === 0) {
-      return { text: "", entities: [] };
-    }
-    // 将子节点解析为纯文本片段（逐节点）
-    const parts: {
-      text: string;
-      entities: textEntity$Input[];
-      type: string;
-    }[] = [];
-    for (const ch of node.children) {
-      const r = processNode(ch, { depth: depth + 1 });
-      parts.push({ text: r.text, entities: r.entities, type: ch.type });
-    }
-    // 合成时用换行连接
-    const joined = parts.map((p) => p.text).join("\n");
-    // 查找第一段文本（外层）与后续第一段嵌套 blockquote 起点
-    let firstNestedIndex = parts.findIndex((p) => p.type === "blockquote");
-    if (firstNestedIndex === -1) firstNestedIndex = parts.length; // 无嵌套
-    // 外层包裹文本长度：合并 firstNestedIndex 之前的片段 + 中间换行
-    let outerLength = 0;
-    for (let i = 0; i < firstNestedIndex; i++) {
-      outerLength += parts[i].text.length;
-      if (i < firstNestedIndex - 1) outerLength += 1; // 换行
-    }
-    if (outerLength > 0) {
-      entities.push({
-        _: "textEntity",
-        offset: 0,
-        length: outerLength,
-        type: {
-          _:
-            depth + 1 >= 2
-              ? "textEntityTypeExpandableBlockQuote"
-              : "textEntityTypeBlockQuote",
-        },
-      });
-    }
-    // 处理嵌套部分：将每个嵌套 blockquote 片段转换为 expandable，并把其后连续的非空普通行（不是 blockquote）并入同一个实体
-    let cursorOffset = 0;
-    // 预计算每个 part 在 joined 中的起始 offset
-    const offsets: number[] = [];
-    for (let i = 0; i < parts.length; i++) {
-      offsets.push(cursorOffset);
-      cursorOffset += parts[i].text.length;
-      if (i < parts.length - 1) cursorOffset += 1; // 换行
-    }
-    for (let i = firstNestedIndex; i < parts.length; i++) {
-      if (parts[i].type === "blockquote") {
-        let startOffset = offsets[i];
-        let length = parts[i].text.length;
-        let j = i + 1;
-        while (
-          j < parts.length &&
-          parts[j].type !== "blockquote" &&
-          parts[j].text.trim() !== ""
-        ) {
-          // 加上换行 + 后续文本
-          length += 1 + parts[j].text.length;
-          j++;
-        }
-        entities.push({
-          _: "textEntity",
-          offset: startOffset,
-          length,
-          type: { _: "textEntityTypeExpandableBlockQuote" },
-        });
-        i = j - 1;
-      }
-    }
-    // 子实体合并（偏移修正）
-    for (let i = 0; i < parts.length; i++) {
-      const base = offsets[i];
-      for (const e of parts[i].entities) {
-        const t = (e as any).type;
-        // 过滤掉子 blockquote 自带的包裹实体，防止重复
-        if (
-          t &&
-          (t._ === "textEntityTypeBlockQuote" ||
-            t._ === "textEntityTypeExpandableBlockQuote")
-        )
-          continue;
-        entities.push({ ...e, offset: (e.offset || 0) + base });
-      }
-    }
-    // 去重（相同 offset/length/type）
-    const uniq: textEntity$Input[] = [];
-    const seen = new Set<string>();
-    for (const e of entities) {
-      const key = `${e.offset}|${e.length}|${(e as any).type._}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniq.push(e);
-      }
-    }
-    return { text: joined, entities: uniq };
-  }
-
-  if (node.type === "list") {
-    if (!Array.isArray(node.children)) return { text: "", entities: [] };
-    const ordered = !!node.ordered;
-    const start = typeof node.start === "number" ? node.start : 1;
-    let index = 0;
-    const lines: string[] = [];
-    for (const li of node.children) {
-      if (li.type !== "listItem") continue;
-      const raw = getTextFromNode(li).trim();
-      const prefix = ordered ? `${start + index}. ` : "- ";
-      lines.push(prefix + raw);
-      index++;
-    }
-    return { text: lines.join("\n"), entities: [] };
-  }
-
-  if (node.type === "strong") {
-    const childResult = node.children
-      ? processNode({ type: "root", children: node.children }, options)
-      : { text: getTextFromNode(node), entities: [] };
-    entities.push({
-      _: "textEntity",
-      offset: 0,
-      length: childResult.text.length,
-      type: { _: "textEntityTypeBold" },
-    });
-    for (const e of childResult.entities) entities.push({ ...e });
-    return { text: childResult.text, entities };
-  }
-
-  if (node.type === "emphasis") {
-    const childResult = node.children
-      ? processNode({ type: "root", children: node.children }, options)
-      : { text: getTextFromNode(node), entities: [] };
-    entities.push({
-      _: "textEntity",
-      offset: 0,
-      length: childResult.text.length,
-      type: { _: "textEntityTypeItalic" },
-    });
-    for (const e of childResult.entities) entities.push({ ...e });
-    return { text: childResult.text, entities };
-  }
-
-  if (node.type === "delete") {
-    const childResult = node.children
-      ? processNode({ type: "root", children: node.children }, options)
-      : { text: getTextFromNode(node), entities: [] };
-    entities.push({
-      _: "textEntity",
-      offset: 0,
-      length: childResult.text.length,
-      type: { _: "textEntityTypeStrikethrough" },
-    });
-    for (const e of childResult.entities) entities.push({ ...e });
-    return { text: childResult.text, entities };
-  }
-
-  if (node.children && Array.isArray(node.children)) {
-    for (let i = 0; i < node.children.length; i++) {
-      const child = node.children[i];
-      const childResult = processNode(child, { depth });
-      const baseOffset = text.length;
-      text += childResult.text;
-      for (const e of childResult.entities) {
-        entities.push({ ...e, offset: (e.offset || 0) + baseOffset });
-      }
-      if (node.type === "root" && i < node.children.length - 1) {
-        const next = node.children[i + 1];
-        // 使用 position 信息计算应保留的空行数
-        const lineBreaks = computeLineBreaksBetween(child, next);
-        if (lineBreaks > 0) {
-          text += "\n".repeat(lineBreaks);
-        }
-      }
-    }
-  }
-
-  return { text, entities };
-}
-
-/**
- * 从 MDAST 节点中提取纯文本内容（深度递归）。
- *
- * 该函数用于在不需要生成实体的上下文中快速获取节点文本表示。
- *
- * @param node - 要提取文本的节点
- * @returns 节点及其子节点拼接后的纯文本
- */
-function getTextFromNode(node: any): string {
-  if (node.type === "text") {
-    return node.value;
-  }
 
   if (node.children) {
-    return node.children.map((child: any) => getTextFromNode(child)).join("");
+    for (const child of node.children) {
+      if (child.type === "blockquote") {
+        // 递归处理嵌套引用
+        processBlockquote(child, tempContext, depth + 1);
+      } else {
+        processNode(child, tempContext);
+      }
+    }
   }
 
-  if (node.value) {
-    return node.value;
+  context.plainText += tempContext.plainText;
+  const endOffset = context.plainText.length;
+
+  // 复制子实体，调整偏移量
+  for (const entity of tempContext.entities) {
+    context.entities.push({
+      ...entity,
+      offset: (entity.offset || 0) + startOffset,
+    });
   }
 
-  return "";
+  // 只有最外层的 blockquote 才添加实体
+  if (depth === 1) {
+    // 检查子节点中是否有嵌套的 blockquote 来判断是否可折叠
+    const isExpandable = node.children.some(
+      (child: any) => child.type === "blockquote"
+    );
+    context.entities.push({
+      _: "textEntity",
+      offset: startOffset,
+      length: endOffset - startOffset,
+      type: isExpandable
+        ? { _: "textEntityTypeExpandableBlockQuote" }
+        : { _: "textEntityTypeBlockQuote" },
+    });
+  }
 }
 
-function isBlockLevel(node: any): boolean {
-  return [
-    "paragraph",
-    "code",
-    "blockquote",
-    "heading",
-    "thematicBreak",
-    "list",
-  ].includes(node?.type);
+/**
+ * 处理段落节点
+ */
+function processParagraph(node: any, context: ParseContext): void {
+  if (node.children) {
+    processNodes(node.children, context);
+  }
+  context.plainText += "\n";
 }
 
-function computeLineBreaksBetween(a: any, b: any): number {
-  if (!a || !b) return 1;
-  if (!isBlockLevel(a) || !isBlockLevel(b)) return 1; // 默认至少 1 个换行
-  const aEnd = a.position?.end?.line;
-  const bStart = b.position?.start?.line;
-  if (!aEnd || !bStart) return 1;
-  const gap = bStart - aEnd; // 行号差
-  if (gap <= 1) return 1; // 相邻行 => 单换行
-  // gap=2 => 一行空行 => 2 个 \n (上一段结束换行 + 空行)，这里我们输出 gap-0 (经验值调整)
-  return gap - 0; // 直接返回差值，保证多空行保留
+/**
+ * 处理文本节点
+ */
+function processText(node: any, context: ParseContext): void {
+  context.plainText += node.value;
+}
+
+/**
+ * 处理链接节点
+ */
+function processLink(node: any, context: ParseContext): void {
+  const startOffset = context.plainText.length;
+
+  // 提取链接文本
+  const linkText = extractTextFromNodes(node.children);
+  context.plainText += linkText;
+
+  const endOffset = context.plainText.length;
+
+  // 添加链接实体
+  context.entities.push({
+    _: "textEntity",
+    offset: startOffset,
+    length: endOffset - startOffset,
+    type: {
+      _: "textEntityTypeTextUrl",
+      url: node.url,
+    },
+  });
+}
+
+/**
+ * 处理粗体节点
+ */
+function processStrong(node: any, context: ParseContext): void {
+  const startOffset = context.plainText.length;
+
+  if (node.children) {
+    processNodes(node.children, context);
+  }
+
+  const endOffset = context.plainText.length;
+
+  context.entities.push({
+    _: "textEntity",
+    offset: startOffset,
+    length: endOffset - startOffset,
+    type: {
+      _: "textEntityTypeBold",
+    },
+  });
+}
+
+/**
+ * 处理斜体节点
+ */
+function processEmphasis(node: any, context: ParseContext): void {
+  const startOffset = context.plainText.length;
+
+  if (node.children) {
+    processNodes(node.children, context);
+  }
+
+  const endOffset = context.plainText.length;
+
+  context.entities.push({
+    _: "textEntity",
+    offset: startOffset,
+    length: endOffset - startOffset,
+    type: {
+      _: "textEntityTypeItalic",
+    },
+  });
+}
+
+/**
+ * 处理代码块节点
+ */
+function processCode(node: any, context: ParseContext): void {
+  const startOffset = context.plainText.length;
+  const codeText = `\n\`\`\`\n${node.value}\n\`\`\`\n`;
+  context.plainText += codeText;
+  const endOffset = context.plainText.length;
+
+  context.entities.push({
+    _: "textEntity",
+    offset: startOffset,
+    length: endOffset - startOffset,
+    type: {
+      _: "textEntityTypeCode",
+    },
+  });
+}
+
+/**
+ * 处理行内代码节点
+ */
+function processInlineCode(node: any, context: ParseContext): void {
+  const startOffset = context.plainText.length;
+  context.plainText += node.value;
+  const endOffset = context.plainText.length;
+
+  context.entities.push({
+    _: "textEntity",
+    offset: startOffset,
+    length: endOffset - startOffset,
+    type: {
+      _: "textEntityTypeCode",
+    },
+  });
+}
+
+/**
+ * 处理列表节点
+ */
+function processList(node: any, context: ParseContext): void {
+  if (node.children) {
+    for (let i = 0; i < node.children.length; i++) {
+      const item = node.children[i];
+      if (item.type === "listItem") {
+        processListItem(item, context, node.ordered ? `${i + 1}. ` : "* ");
+      }
+    }
+  }
+  context.plainText += "\n";
+}
+
+/**
+ * 处理列表项节点
+ */
+function processListItem(
+  node: any,
+  context: ParseContext,
+  prefix: string
+): void {
+  context.plainText += prefix;
+  if (node.children) {
+    processNodes(node.children, context);
+  }
+  context.plainText += "\n";
+}
+
+/**
+ * 处理分割线节点
+ */
+function processThematicBreak(node: any, context: ParseContext): void {
+  context.plainText += "---";
+  context.plainText += "\n";
+}
+
+/**
+ * 从节点数组中提取纯文本
+ */
+function extractTextFromNodes(nodes: Content[]): string {
+  let text = "";
+  for (const node of nodes) {
+    if (node.type === "text") {
+      text += node.value;
+    } else if ("children" in node && Array.isArray(node.children)) {
+      text += extractTextFromNodes(node.children as Content[]);
+    }
+  }
+  return text;
 }
