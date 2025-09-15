@@ -3,7 +3,7 @@ import type {
   anime as animeType,
   BtData as BtDataType,
   BtEntry,
-} from "../types/anime.js";
+} from "../types/anime.ts";
 
 /**
  * 生成导航消息文本

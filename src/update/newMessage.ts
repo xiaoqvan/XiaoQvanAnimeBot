@@ -2,10 +2,9 @@ import type {
   updateNewMessage as Td$updateNewMessage,
   message as Td$message,
 } from "tdlib-types";
-import logger from "../log/index.js";
-import { formattedDate } from "../function/index.js";
-import { messageLog } from "../function/message.js";
-import { BotCommand } from "../cmd/index.js";
+import logger from "../log/index.ts";
+import { formattedDate } from "../function/index.ts";
+import { BotCommand } from "../cmd/index.ts";
 
 /**处理新消息 */
 export default async function handleNewMessage(update: Td$updateNewMessage) {
@@ -14,10 +13,7 @@ export default async function handleNewMessage(update: Td$updateNewMessage) {
 
   if (ignoreExpiredMessages(message)) return;
 
-  const handlers = [
-    { handler: messageLog, errMsg: "消息日志记录失败" },
-    { handler: BotCommand, errMsg: "处理Bot命令失败" },
-  ];
+  const handlers = [{ handler: BotCommand, errMsg: "处理Bot命令失败" }];
 
   await Promise.all(
     handlers.map(async ({ handler, errMsg }) => {

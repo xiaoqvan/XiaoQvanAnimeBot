@@ -1,15 +1,18 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "node",
     "strict": true,
+    "types": ["node"],
+    "esModuleInterop": true,
+    "noEmit": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": true,
     "outDir": "dist",
-    "declaration": true,
-    "declarationMap": true,
-    "forceConsistentCasingInFileNames": true
+    "rootDir": ".",
+    "sourceMap": true
   },
-  "include": ["src"]
+  "include": ["src", "src/types"],
+  "exclude": ["node_modules", "dist"]
 }

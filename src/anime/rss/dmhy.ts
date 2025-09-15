@@ -1,7 +1,7 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
-import logger from "../../log/index.js";
-import { RssAnimeItem } from "../../types/anime.js";
+import logger from "../../log/index.ts";
+import type { RssAnimeItem } from "../../types/anime.ts";
 
 const authorMapping: Record<string, string> = {
   smzase: "三明治摆烂组",

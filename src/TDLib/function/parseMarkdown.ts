@@ -5,7 +5,7 @@ import type {
 } from "tdlib-types";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
-import logger from "../../log/index.js";
+import logger from "../../log/index.ts";
 
 /**
  * 将 Markdown 格式的文本解析为格式化文本

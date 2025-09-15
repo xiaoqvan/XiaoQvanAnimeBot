@@ -4,19 +4,19 @@ import {
   editMessageMedia,
   editMessageText,
   sendMessage,
-} from "../TDLib/function/message.js";
-import logger from "../log/index.js";
-import { isUserAdmin } from "../TDLib/function/index.js";
-import { getAnimeById } from "../database/query.js";
-import { fetchBangumiTorrent, getSubjectById } from "../anime/info.js";
+} from "../TDLib/function/message.ts";
+import logger from "../log/index.ts";
+import { isUserAdmin } from "../TDLib/function/index.ts";
+import { getAnimeById } from "../database/query.ts";
+import { fetchBangumiTorrent, getSubjectById } from "../anime/info.ts";
 import {
   extractFilteredTagNames,
   extractInfoFromInfobox,
-} from "../anime/index.js";
+} from "../anime/index.ts";
 
-import { anime, BtData } from "../types/anime.js";
-import { getMessageLinkInfo } from "../TDLib/function/get.js";
-import { navmegtext } from "../anime/text.js";
+import { anime, BtData } from "../types/anime.ts";
+import { getMessageLinkInfo } from "../TDLib/function/get.ts";
+import { navmegtext } from "../anime/text.ts";
 /**
  * 处理动漫信息纠正命令
  * @param {object} message - 消息对象

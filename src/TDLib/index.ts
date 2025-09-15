@@ -2,8 +2,7 @@ import tdl from "tdl";
 import { getTdjson } from "prebuilt-tdlib";
 import os from "os";
 import si from "systeminformation";
-import logger from "../log/index.js";
-import { handleUpdate } from "./update/index.js";
+import logger from "../log/index.ts";
 
 async function createClient() {
   logger.info("初始化TDLib客户端...");
@@ -26,9 +25,6 @@ async function createClient() {
       device_model: system.model || os.type(),
       system_version: undefined,
     },
-  });
-  client.on("update", async (update) => {
-    handleUpdate(update);
   });
   return client;
 }

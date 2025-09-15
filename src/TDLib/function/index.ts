@@ -1,4 +1,7 @@
 import type {
+  formattedText$Input,
+  textEntity$Input,
+  TextEntityType$Input,
   MessageSender$Input,
   chatPermissions$Input,
   FileType$Input,
@@ -7,8 +10,8 @@ import type {
   ChatMemberStatus,
   MessageSender,
 } from "tdlib-types";
-import { getClient } from "../index.js";
-import logger from "../../log/index.js";
+import { getClient } from "../index.ts";
+import logger from "../../log/index.ts";
 import {
   getBasicGroup,
   getChat,
@@ -16,7 +19,7 @@ import {
   getSupergroup,
   getSupergroupFullInfo,
   getUser,
-} from "./get.js";
+} from "./get.ts";
 
 const client = await getClient();
 

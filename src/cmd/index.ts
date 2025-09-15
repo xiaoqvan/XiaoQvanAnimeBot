@@ -1,11 +1,11 @@
-import { getMe } from "../TDLib/function/get.js";
+import { getMe } from "../TDLib/function/get.ts";
 import type { message as messageType } from "tdlib-types";
-import start from "./start.js";
-import handleSearchAnime from "./searchanime.js";
-import handleHelp from "./help.js";
-import logger from "../log/index.js";
-import { ErrorHandler } from "../function/index.js";
-import { sendMessage } from "../TDLib/function/message.js";
+import start from "./start.ts";
+import handleSearchAnime from "./searchanime.ts";
+import handleHelp from "./help.ts";
+import logger from "../log/index.ts";
+import { ErrorHandler } from "../function/index.ts";
+import { sendMessage } from "../TDLib/function/message.ts";
 
 /**
  * 处理命令

@@ -1,7 +1,7 @@
 import type { message as messageType } from "tdlib-types";
-import { sendMessage } from "../TDLib/function/message.js";
-import { searchAnime } from "../database/query.js";
-import logger from "../log/index.js";
+import { sendMessage } from "../TDLib/function/message.ts";
+import { searchAnime } from "../database/query.ts";
+import logger from "../log/index.ts";
 
 /**
  * 处理 /searchanime 命令

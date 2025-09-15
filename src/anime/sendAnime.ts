@@ -1,22 +1,22 @@
 import fs from "fs/promises";
 
-import logger from "../log/index.js";
+import logger from "../log/index.ts";
 
 import {
   updateAnimeNavMessageLink,
   updateAnimeScore,
   updateTorrentStatus,
-} from "../database/update.js";
+} from "../database/update.ts";
 
-import { editMessageCaption, sendMessage } from "../TDLib/function/message.js";
-import { getAnimeById } from "../database/query.js";
-import { AnimeText, navmegtext } from "./text.js";
-import { getSubjectById } from "./info.js";
-import { getMessageLink, getMessageLinkInfo } from "../TDLib/function/get.js";
-import { downloadFile, extractVideoMetadata } from "../function/index.js";
+import { editMessageCaption, sendMessage } from "../TDLib/function/message.ts";
+import { getAnimeById } from "../database/query.ts";
+import { AnimeText, navmegtext } from "./text.ts";
+import { getSubjectById } from "./info.ts";
+import { getMessageLink, getMessageLinkInfo } from "../TDLib/function/get.ts";
+import { downloadFile, extractVideoMetadata } from "../function/index.ts";
 
-import type { animeItem, anime as animeType } from "../types/anime.js";
-import { parseMarkdownToFormattedText } from "../TDLib/function/parseMarkdown.js";
+import type { animeItem, anime as animeType } from "../types/anime.ts";
+import { parseMarkdownToFormattedText } from "../TDLib/function/parseMarkdown.ts";
 
 /**
  * 发送/更新 导航频道的消息

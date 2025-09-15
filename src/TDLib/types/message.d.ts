@@ -21,7 +21,6 @@ export type Td$editMessageCaption = Omit<Td$editMessageCaptionOriginal, "_"> & {
 export type Td$editMessageText = Omit<Td$editMessageTextOriginal, "_"> & {
   _?: Td$editMessageTextOriginal["_"];
 };
-
 export type Td$editMessageMedia = Omit<Td$editMessageMediaOriginal, "_"> & {
   _?: Td$editMessageMediaOriginal["_"];
 };

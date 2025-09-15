@@ -1,7 +1,7 @@
-import logger from "../log/index.js";
-import type { animeItem, anime as AnimeType, BtEntry } from "../types/anime.js";
+import logger from "../log/index.ts";
+import type { animeItem, anime as AnimeType, BtEntry } from "../types/anime.ts";
 
-import { getDatabase } from "./initDb.js";
+import { getDatabase } from "./initDb.ts";
 
 const db = await getDatabase();
 

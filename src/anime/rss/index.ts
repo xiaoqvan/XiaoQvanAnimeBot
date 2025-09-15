@@ -1,9 +1,9 @@
-import { fetchBangumiRss } from "./bangumi.js";
-import { fetchDmhyRss } from "./dmhy.js";
-import { fetchAcgnxRss } from "./acgnx.js";
-import logger from "../../log/index.js";
-import { getAnimeBlacklist } from "../../database/query.js";
-import { RssAnimeItem } from "../../types/anime.js";
+import { fetchBangumiRss } from "./bangumi.ts";
+import { fetchDmhyRss } from "./dmhy.ts";
+import { fetchAcgnxRss } from "./acgnx.ts";
+import logger from "../../log/index.ts";
+import { getAnimeBlacklist } from "../../database/query.ts";
+import type { RssAnimeItem } from "../../types/anime.ts";
 
 /**
  * 合并多个RSS源并进行去重处理

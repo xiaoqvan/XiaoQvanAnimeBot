@@ -1,9 +1,9 @@
-import { addTorrent } from "../database/create.js";
-import { getQBClient } from "../qBittorrent/index.js";
+import { addTorrent } from "../database/create.ts";
+import { getQBClient } from "../qBittorrent/index.ts";
 import parseTorrent, { remote, toMagnetURI } from "parse-torrent";
-import logger from "../log/index.js";
-import { updateTorrentStatus } from "../database/update.js";
-import { Torrent } from "../types/torrent.js";
+import logger from "../log/index.ts";
+import { updateTorrentStatus } from "../database/update.ts";
+import type { Torrent } from "../types/torrent.ts";
 
 const QBclient = await getQBClient();
 

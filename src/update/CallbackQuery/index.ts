@@ -1,6 +1,6 @@
-import { ErrorHandler } from "../../function/index.js";
-import logger from "../../log/index.js";
-import { falseAnime, nullAnime, trueAnime } from "./hasAnime.js";
+import { ErrorHandler } from "../../function/index.ts";
+import logger from "../../log/index.ts";
+import { falseAnime, nullAnime, trueAnime } from "./hasAnime.ts";
 import type { updateNewCallbackQuery as Td$updateNewCallbackQuery } from "tdlib-types";
 
 /**

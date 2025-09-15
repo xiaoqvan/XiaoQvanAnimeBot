@@ -1,5 +1,5 @@
-import { getClient } from "../index.js";
-import logger from "../../log/index.js";
+import { getClient } from "../index.ts";
+import logger from "../../log/index.ts";
 
 import type { MessageSender$Input, formattedText$Input } from "tdlib-types";
 

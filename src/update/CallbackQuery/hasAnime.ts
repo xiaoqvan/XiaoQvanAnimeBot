@@ -1,29 +1,29 @@
-import { getAnimeById, getCacheItemById } from "../../database/query.js";
-import logger from "../../log/index.js";
+import { getAnimeById, getCacheItemById } from "../../database/query.ts";
+import logger from "../../log/index.ts";
 import {
   answerCallbackQuery,
   chatoruserMdown,
-} from "../../TDLib/function/index.js";
+} from "../../TDLib/function/index.ts";
 import {
   deleteMessage,
   editMessageText,
   sendMessage,
-} from "../../TDLib/function/message.js";
+} from "../../TDLib/function/message.ts";
 
 import type { messageSenderUser } from "tdlib-types";
-import type { anime as animeType } from "../../types/anime.js";
-import { saveAnime } from "../../database/create.js";
-import { sendMegToAnime, sendMegToNavAnime } from "../../anime/sendAnime.js";
-import { AnimeText } from "../../anime/text.js";
-import { getMessageLink } from "../../TDLib/function/get.js";
-import { addAnimeNameAlias, updateAnimeBtdata } from "../../database/update.js";
-import { findEpisodeByCacheId, omit } from "../../function/index.js";
-import { deleteCacheAnime } from "../../database/delete.js";
-import { getClient } from "../../TDLib/index.js";
-import { getSubjectById } from "../../anime/info.js";
-import { buildAndSaveAnimeFromInfo } from "../../anime/index.js";
-import { downloadTorrentFromUrl } from "../../anime/torrent.js";
-import { getQBClient } from "../../qBittorrent/index.js";
+import type { anime as animeType } from "../../types/anime.ts";
+import { saveAnime } from "../../database/create.ts";
+import { sendMegToAnime, sendMegToNavAnime } from "../../anime/sendAnime.ts";
+import { AnimeText } from "../../anime/text.ts";
+import { getMessageLink } from "../../TDLib/function/get.ts";
+import { addAnimeNameAlias, updateAnimeBtdata } from "../../database/update.ts";
+import { findEpisodeByCacheId, omit } from "../../function/index.ts";
+import { deleteCacheAnime } from "../../database/delete.ts";
+import { getClient } from "../../TDLib/index.ts";
+import { getSubjectById } from "../../anime/info.ts";
+import { buildAndSaveAnimeFromInfo } from "../../anime/index.ts";
+import { downloadTorrentFromUrl } from "../../anime/torrent.ts";
+import { getQBClient } from "../../qBittorrent/index.ts";
 
 const QBclient = await getQBClient();
 const client = await getClient();

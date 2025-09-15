@@ -1,6 +1,6 @@
-import { getDatabase } from "./initDb.js";
-import { formatSubGroupName } from "../function/index.js";
-import type { anime as AnimeType } from "../types/anime.js";
+import { getDatabase } from "./initDb.ts";
+import { formatSubGroupName } from "../function/index.ts";
+import type { anime as AnimeType } from "../types/anime.ts";
 const db = await getDatabase();
 
 /**

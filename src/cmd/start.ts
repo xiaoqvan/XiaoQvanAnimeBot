@@ -1,4 +1,4 @@
-import { sendMessage } from "../TDLib/function/message.js";
+import { sendMessage } from "../TDLib/function/message.ts";
 import type { message as messageType } from "tdlib-types";
 
 export default async function start(message: messageType) {

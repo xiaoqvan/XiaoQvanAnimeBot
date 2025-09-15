@@ -1,5 +1,5 @@
 import { MongoClient } from "mongodb";
-import logger from "../log/index.js";
+import logger from "../log/index.ts";
 
 if (!process.env.MONGODB_URI) {
   throw new Error("缺少MONGODB_URI环境变量");

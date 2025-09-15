@@ -1,5 +1,5 @@
-import logger from "../../log/index.js";
-import { getClient } from "../index.js";
+import logger from "../../log/index.ts";
+import { getClient } from "../index.ts";
 import type { ProxyType$Input } from "tdlib-types";
 
 const client = await getClient();

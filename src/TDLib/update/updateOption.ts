@@ -2,7 +2,7 @@ import type {
   updateOption as Td$updateOption,
   optionValueString as Td$optionValueString,
 } from "tdlib-types";
-import logger from "../../log/index.js";
+import logger from "../../log/index.ts";
 
 /**
  * 处理选项更新

@@ -2,8 +2,8 @@ import { execSync } from "child_process";
 import path from "path";
 import fs from "fs";
 import axios from "axios";
-import type { BtData } from "../types/anime.js";
-import { sendMessage } from "../TDLib/function/message.js";
+import type { BtData } from "../types/anime.ts";
+import { sendMessage } from "../TDLib/function/message.ts";
 
 /**
  * 将 Unix 时间戳（以秒为单位）转换为格式化的日期字符串。

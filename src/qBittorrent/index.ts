@@ -1,5 +1,5 @@
 import { QBittorrent } from "@ctrl/qbittorrent";
-import logger from "../log/index.js";
+import logger from "../log/index.ts";
 
 async function Torrent() {
   const QBclient = new QBittorrent({

@@ -3,21 +3,20 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "node --import \"data:text/javascript,import { register } from 'node:module'; import { pathToFileURL } from 'node:url'; register('./file-loader.mjs', pathToFileURL('./'))\" src/index.ts --debug",
     "build": "tsup src/index.ts",
     "lint": "eslint .",
     "start": "node --enable-source-maps dist/index.js"
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
-    "@types/node": "^22.0.0",
+    "@types/node": "^20.5.2",
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.42.0",
+    "esbuild": "^0.25.9",
     "eslint": "^9.0.0",
+    "jiti": "^2.5.1",
     "tsup": "^8.0.0",
-    "tsx": "^4.20.5",
-    "typescript": "^5.5.0",
-    "typescript-eslint": "^8.0.0"
+    "typescript": "^5.5.0"
   },
   "dependencies": {
     "@ctrl/qbittorrent": "^9.7.0",

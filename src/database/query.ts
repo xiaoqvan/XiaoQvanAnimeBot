@@ -1,9 +1,9 @@
-import { getDatabase } from "./initDb.js";
+import { getDatabase } from "./initDb.ts";
 import type {
   AnimeBlacklistConfig,
   TagExcludeListConfig,
-} from "../types/database.js";
-import type { animeItem, anime as animeType } from "../types/anime.js";
+} from "../types/database.ts";
+import type { animeItem, anime as animeType } from "../types/anime.ts";
 
 const db = await getDatabase();
 

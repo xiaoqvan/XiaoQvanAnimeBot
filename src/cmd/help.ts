@@ -1,13 +1,16 @@
 import type { message as messageType } from "tdlib-types";
-import logger from "../log/index.js";
-import { sendMessage } from "../TDLib/function/message.js";
-import { isUserAdmin } from "../TDLib/function/index.js";
+import logger from "../log/index.ts";
+import { sendMessage } from "../TDLib/function/message.ts";
+import { isUserAdmin } from "../TDLib/function/index.ts";
 /**
  * 处理帮助命令
  * @param message - 消息对象
  * @param commandParts - 命令参数数组
  */
-export default async function handleHelp(message: messageType, commandParts: string[]) {
+export default async function handleHelp(
+  message: messageType,
+  commandParts: string[]
+) {
   const chatId = message.chat_id;
 
   try {

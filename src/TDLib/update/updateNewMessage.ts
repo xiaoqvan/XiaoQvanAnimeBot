@@ -1,21 +1,23 @@
-import { getUser, getChat } from "../TDLib/function/get.js";
-import { formattedDate } from "./index.js";
 import winston from "winston";
 import path from "path";
-import type { Message as Td$Message } from "tdlib-types";
-import { fileURLToPath } from "url";
+import type {
+  Message as Td$Message,
+  updateNewMessage as Td$updateNewMessage,
+} from "tdlib-types";
+import { getChat, getUser } from "../function/get.js";
 
-// 获取当前文件的目录路径
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+export default async function updateNewMessage(update: Td$updateNewMessage) {
+  messageLog(update.message);
+}
 
 // 创建专用的消息日志记录器
+const logsDir = path.join(process.cwd(), "logs");
 const messageLogger = winston.createLogger({
   level: "info",
   transports: [
     // 消息日志文件 - 纯文本格式
     new winston.transports.File({
-      filename: path.join(__dirname, "../../logs/messages.log"),
+      filename: path.join(logsDir, "messages.log"),
       format: winston.format.combine(
         winston.format.timestamp({
           format: "YYYY-MM-DD HH:mm:ss",
@@ -236,4 +238,33 @@ export async function messageLog(message: Td$Message) {
     logToConsole(coloredMessage);
     messageLogger.info(plainMessage);
   }
+}
+
+/**
+ * 将 Unix 时间戳（以秒为单位）转换为格式化的日期字符串。
+ *
+ * @param date - 以秒为单位的 Unix 时间戳。
+ * @param timezone - 时区，如 'Asia/Shanghai'，默认为 UTC。
+ * @returns 格式化的日期字符串，格式为 "YYYY-MM-DD HH:mm:ss"。
+ */
+export function formattedDate(date: number, timezone = "UTC") {
+  const dateObj = new Date(date * 1000);
+
+  if (timezone === "UTC") {
+    return dateObj.toISOString().replace("T", " ").split(".")[0];
+  }
+
+  const options: Intl.DateTimeFormatOptions = {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  };
+
+  const formatter = new Intl.DateTimeFormat("sv-SE", options);
+  return formatter.format(dateObj).replace(",", "");
 }
