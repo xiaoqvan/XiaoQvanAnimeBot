@@ -79,7 +79,7 @@ export async function getAnimeById(
 
   try {
     const anime = await db
-      .collection<animeType>(cache ? "animeCache" : "anime")
+      .collection<animeType>(cache ? "cacheAnime" : "anime")
       .findOne({ id: animeId });
     return anime;
   } catch (error) {
@@ -101,7 +101,7 @@ export async function getCacheItemById(id: number) {
   try {
     const cacheItem = await db
       .collection<{ id: number; item: animeItem; createdAt: Date }>(
-        "animeCache"
+        "cacheAnime"
       )
       .findOne({ id });
     return cacheItem?.item;
