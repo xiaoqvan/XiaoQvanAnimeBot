@@ -5,6 +5,10 @@ import handleSearchAnime from "./searchanime.ts";
 import handleHelp from "./help.ts";
 import logger from "../log/index.ts";
 import { ErrorHandler } from "../function/index.ts";
+import { sendMessage } from "../TDLib/function/message.ts";
+import { parseMarkdownToFormattedText } from "../TDLib/function/parseMarkdown.ts";
+import { navmegtext } from "../anime/text.ts";
+import handleSetAnimeR18 from "./setanimer18.ts";
 
 /**
  * 处理命令
@@ -64,6 +68,8 @@ export async function BotCommand(message: messageType) {
         help: handleHelp,
         searchanime: handleSearchAnime,
         s: handleSearchAnime,
+        test: test,
+        setanimer18: handleSetAnimeR18,
       };
 
       // 基于命令名分发到对应的处理器
@@ -81,83 +87,11 @@ export async function BotCommand(message: messageType) {
           ErrorHandler(err);
         }
       }
-
-      // switch (baseCommand) {
-      //   case "/start":
-      //     // await start(message);
-
-      //     sendMessage(message.chat_id, {
-      //       reply_to: {
-      //         _: "inputMessageReplyToMessage",
-      //         message_id: message.id,
-      //       },
-      //       input_message_content: {
-      //         _: "inputMessageText",
-      //         text:  (
-      //           "欢迎使用xiaoqvan的Bot！\n\n使用 /help 可以获取帮助"
-      //         ),
-      //         link_preview_options: {
-      //           _: "linkPreviewOptions",
-      //           is_disabled: true,
-      //         },
-      //       },
-      //     });
-      //     break;
-      //   case "/excludeTag":
-      //     await handleExcludeTag(message, commandParts);
-      //     break;
-      //   case "/extractnames":
-      //     await handleExtractNames(message, commandParts);
-      //     break;
-      //   case "/addanime":
-      //     // 处理添加动漫的逻辑
-      //     // await handleAddAnime(message, commandParts);
-      //     break;
-      //   case "/correctanime":
-      //     // 处理动漫信息纠正的逻辑
-      //     await handleCorrectAnime(message, commandParts);
-      //     break;
-      //   case "/addname":
-      //     // 处理添加动漫别名的逻辑
-      //     await handleAddName(message, commandParts);
-      //     break;
-      //   case "/removename":
-      //     // 处理删除动漫别名的逻辑
-      //     await handleRemoveName(message, commandParts);
-      //     break;
-      //   case "/deleteanime":
-      //     // 处理删除动漫信息的逻辑
-      //     await handleDeleteAnime(message, commandParts);
-      //     break;
-      //   case "/searchanime":
-      //   case "/s":
-      //     // 处理搜索动漫的逻辑
-      //     await handleSearchAnime(message, commandParts);
-      //     break;
-      //   case "/getanime":
-      //     // 处理获取动漫详细信息的逻辑
-      //     await handleGetAnime(message, commandParts);
-      //     break;
-      //   case "/help":
-      //     // 处理帮助命令的逻辑
-      //     await handleHelp(message, commandParts);
-      //     break;
-      //   case "/log":
-      //     // 处理获取日志文件的逻辑
-      //     await handleGetLog(message, commandParts);
-      //     break;
-      //   case "/blacklistanime":
-      //     await handleBlacklistAnime(message, commandParts);
-      //     break;
-      //   case "/addanimeinfo":
-      //     await handleAddAnimeInfo(message, commandParts);
-      //     break;
-      //   case "/setanimer18":
-      //     await handleSetAnimeR18(message, commandParts);
-      //     break;
-      // }
     } catch (error) {
       logger.error(error);
     }
   }
+}
+async function test(message: messageType, commandParts: string[]) {
+  console.log("test commandParts", commandParts);
 }

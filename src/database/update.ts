@@ -347,3 +347,41 @@ export async function addAnimeNameAlias(
     );
   }
 }
+
+/** 更新动漫的 r18 字段
+ * @param animeId - 动漫的id字段值
+ * @param r18 - 新的 r18 值（true 或 false）
+ * @return 如果更新成功返回 true，否则返回 false
+ * @throws 当参数无效或数据库操作失败时抛出异常
+ */
+export async function updateAnimeR18(animeId: number, r18: boolean) {
+  if (
+    !animeId ||
+    typeof Number(animeId) !== "number" ||
+    Number.isNaN(Number(animeId))
+  ) {
+    throw new Error("动漫ID是必需且必须为有效数字");
+  }
+  if (r18 === null || r18 === undefined || typeof r18 !== "boolean") {
+    throw new Error("r18 参数必须为布尔值");
+  }
+
+  try {
+    const anime = await db.collection("anime").findOne({ id: Number(animeId) });
+    if (!anime) {
+      throw new Error(`未找到ID为 ${animeId} 的动漫`);
+    }
+
+    const result = await db.collection("anime").updateOne(
+      { id: Number(animeId) },
+      {
+        $set: { r18, updatedAt: new Date() },
+      }
+    );
+    return result.modifiedCount > 0;
+  } catch (error) {
+    throw new Error(
+      `更新动漫R18字段失败: ${error instanceof Error ? error.message : error}`
+    );
+  }
+}
