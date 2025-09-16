@@ -55,7 +55,7 @@ export async function trueAnime(
       text: `失败出现错误`,
       show_alert: false,
     });
-    return;
+    throw new Error("anime不存在");
   }
 
   await editMessageText({
@@ -73,7 +73,7 @@ export async function trueAnime(
       text: `失败出现错误`,
       show_alert: false,
     });
-    return;
+    throw new Error("更新动漫链接失败");
   }
   await answerCallbackQuery(queryId, {
     text: `确认成功`,
@@ -435,17 +435,21 @@ async function updateAnimeLinks(
 
   await sendMegToNavAnime(animeId);
   if (!anime.btdata) {
-    return;
+    throw new Error("btdata不存在");
   }
+  console.log("anime.btdata", anime.btdata);
 
   const episodeData = findEpisodeByCacheId(anime.btdata, cache_id);
+
+  console.log("episodeData", episodeData);
+
   if (
     !episodeData ||
     !episodeData.episode ||
     !episodeData.episode.unique_id ||
     !episodeData.episode.title
   ) {
-    return;
+    throw new Error("未找到对应的集数信息");
   }
 
   const new_Anime = await getAnimeById(animeId);

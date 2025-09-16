@@ -39,6 +39,7 @@ export async function sendMegToNavAnime(id: number) {
     Anime.score = score;
 
     const navmeg = await getMessageLinkInfo(Anime.navMessageLink);
+    const navCaption = parseMarkdownToFormattedText(navmegtext(Anime));
 
     if (!navmeg.message) {
       logger.error(`导航消息链接无效: ${Anime.navMessageLink}`);
@@ -46,19 +47,17 @@ export async function sendMegToNavAnime(id: number) {
     }
     if (
       navmeg.message.content._ === "messagePhoto" &&
-      navmeg.message.content.caption ===
-        parseMarkdownToFormattedText(navmegtext(Anime))
+      navCaption.text &&
+      navmeg.message.content.caption.text.trim() === navCaption.text.trim()
     ) {
       // 内容未变无需更新
-      return;
+      return Anime.navMessageLink;
     }
 
     await editMessageCaption({
       chat_id: navmeg.chat_id,
       message_id: navmeg.message.id,
-      invoke: {
-        caption: parseMarkdownToFormattedText(navmegtext(Anime)),
-      },
+      text: navmegtext(Anime),
     });
 
     return Anime.navMessageLink;

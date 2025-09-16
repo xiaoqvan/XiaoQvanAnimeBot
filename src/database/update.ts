@@ -225,6 +225,7 @@ export async function updateAnimeBtdata(
         episode: episode,
         TGMegLink: tgMegLink,
         title: title,
+        cache_id: cacheItemId ? cacheItemId : undefined,
         videoid: videoid ? videoid : undefined,
         names: names ? names : undefined,
         unique_id: unique_id ? unique_id : undefined,
