@@ -14,9 +14,9 @@ import { AnimeText, navmegtext } from "./text.ts";
 import { getSubjectById } from "./info.ts";
 import { getMessageLink, getMessageLinkInfo } from "../TDLib/function/get.ts";
 import { downloadFile, extractVideoMetadata } from "../function/index.ts";
+import { parseMarkdownToFormattedText } from "../TDLib/function/parseMarkdown.ts";
 
 import type { animeItem, anime as animeType } from "../types/anime.ts";
-import { parseMarkdownToFormattedText } from "../TDLib/function/parseMarkdown.ts";
 
 /**
  * 发送/更新 导航频道的消息
