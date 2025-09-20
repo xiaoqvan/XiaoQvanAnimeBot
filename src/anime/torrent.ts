@@ -8,6 +8,44 @@ import type { Torrent } from "../types/torrent.ts";
 const QBclient = await getQBClient();
 
 /**
+ * 通用的 QB 请求重试封装
+ * @param fn - 要执行的请求函数
+ * @param maxRetries - 最大重试次数
+ * @param initialDelay - 初始延迟时间（毫秒）
+ * @returns - 请求结果
+ */
+async function qbRequestWithRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  initialDelay = 5000
+): Promise<T> {
+  let attempt = 0;
+  let delay = initialDelay;
+  let lastErr: any;
+
+  while (attempt <= maxRetries) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastErr = err;
+      attempt++;
+      if (attempt > maxRetries) break;
+      logger.warn(
+        `QB 请求失败（第 ${attempt}/${maxRetries} 次尝试）。${Math.round(
+          delay / 1000
+        )} 秒后重试: ${err instanceof Error ? err.message : err}`
+      );
+      // 指数退避
+      await wait(delay);
+      delay = Math.min(delay * 2, 10000);
+    }
+  }
+
+  // 最后一次尝试失败，抛出原始错误
+  throw lastErr;
+}
+
+/**
  * 下载种子文件并返回文件路径
  * @param url - 种子文件的URL
  * @param title - 任务标题
@@ -46,16 +84,18 @@ export async function downloadAndReturnPath(
   // 检查输入
   if (typeof magnetLink !== "string") return null;
 
-  await QBclient.addMagnet(magnetLink);
+  // 使用重试封装来调用 QBclient.addMagnet，防止偶发超时导致抛出
+  await qbRequestWithRetry(() => QBclient.addMagnet(magnetLink));
 
   const hash = await getMagnetHash(magnetLink);
 
-  let torrent;
+  let torrent: any | Torrent;
 
   // 循环直到找到对应 hash 的 torrent（每 2 秒重试一次）
   while (!torrent) {
     try {
-      const data = await QBclient.getAllData();
+      // 使用重试封装获取全部数据
+      const data = await qbRequestWithRetry(() => QBclient.getAllData());
       torrent =
         data && data.torrents
           ? data.torrents.find((t) => {
@@ -84,8 +124,14 @@ export async function downloadAndReturnPath(
 
   // 1. 等待种子信息获取（has_metadata）
   while (true) {
-    // 使用 getTorrent 替代 getAllData
-    const t = await QBclient.getTorrent(torrent.id);
+    // 使用 getTorrent 替代 getAllData，并加重试
+    const torrentId = torrent?.id;
+    if (!torrentId) {
+      // 若暂时没有 id，等待并重试
+      await wait(1000);
+      continue;
+    }
+    const t = await qbRequestWithRetry(() => QBclient.getTorrent(torrentId));
     // 兼容 t 或 t.torrent 等两种返回结构，保留旧的 torrent 对象以防接口短暂返回 null
     torrent = t || torrent;
 
