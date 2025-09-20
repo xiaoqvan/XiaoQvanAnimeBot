@@ -1,8 +1,4 @@
-import type {
-  formattedText$Input,
-  textEntity$Input,
-  TextEntityType$Input,
-} from "tdlib-types";
+import type { formattedText$Input, textEntity$Input } from "tdlib-types";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import type { Root, Content } from "mdast";
@@ -207,18 +203,85 @@ function processLink(node: any, context: ParseContext): void {
 
   // 提取链接文本
   const linkText = extractTextFromNodes(node.children);
+
+  // 验证 URL 是否为允许的格式: tg://, http(s)://, 或以 www. 或裸域名开头
+  const rawUrl: string = String(node.url || "").trim();
+  const isValidLink =
+    rawUrl.startsWith("tg://") ||
+    rawUrl.startsWith("http://") ||
+    rawUrl.startsWith("https://") ||
+    /^www\.[^\s]+\.[^\s]+$/.test(rawUrl) ||
+    /^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(rawUrl);
+
+  if (!isValidLink) {
+    // 如果不是有效链接，则保留原始 Markdown 文本，例如 [text](url)，且不创建实体
+    context.plainText += `[${linkText}](${rawUrl})`;
+    return;
+  }
+
+  // 自动补全缺失的协议（对 www. 或裸域名补 http://）
+  // 先特殊处理 tg:// 链接，优先于补协议逻辑，避免误操作
+  if (rawUrl.startsWith("tg://")) {
+    // 针对 tg://user?id=... 使用 URLSearchParams 提取 id，支持额外参数
+    if (rawUrl.startsWith("tg://user")) {
+      const query = rawUrl.split("?")[1] || "";
+      const params = new URLSearchParams(query);
+      const idStr = params.get("id");
+      const userId = idStr ? parseInt(idStr, 10) : NaN;
+      if (!Number.isNaN(userId)) {
+        context.plainText += linkText;
+        const endOffset = context.plainText.length;
+        context.entities.push({
+          _: "textEntity",
+          offset: startOffset,
+          length: endOffset - startOffset,
+          type: {
+            _: "textEntityTypeMentionName",
+            user_id: userId,
+          },
+        });
+        return;
+      }
+      // 解析失败则保留原文
+      context.plainText += `[${linkText}](${rawUrl})`;
+      return;
+    }
+
+    // 其它 tg:// 链接当作文本 URL 处理（不补协议）
+    context.plainText += linkText;
+    const endOffset = context.plainText.length;
+    context.entities.push({
+      _: "textEntity",
+      offset: startOffset,
+      length: endOffset - startOffset,
+      type: {
+        _: "textEntityTypeTextUrl",
+        url: rawUrl,
+      },
+    });
+    return;
+  }
+
+  let processedUrl = rawUrl;
+  if (!/^https?:\/\//i.test(processedUrl)) {
+    if (
+      /^www\./i.test(processedUrl) ||
+      /^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(processedUrl)
+    ) {
+      processedUrl = "http://" + processedUrl;
+    }
+  }
+
+  // 其他有效链接按文本 URL 处理
   context.plainText += linkText;
-
   const endOffset = context.plainText.length;
-
-  // 添加链接实体
   context.entities.push({
     _: "textEntity",
     offset: startOffset,
     length: endOffset - startOffset,
     type: {
       _: "textEntityTypeTextUrl",
-      url: node.url,
+      url: processedUrl,
     },
   });
 }

@@ -1,6 +1,7 @@
 import type { Update as Td$Update } from "tdlib-types";
 import updateOption from "./updateOption.ts";
 import updateAuthorizationState from "./updateAuthorizationState.ts";
+import updateNewMessage from "./updateNewMessage.ts";
 
 export async function handleUpdate(update: Td$Update) {
   switch (update._) {
@@ -14,7 +15,7 @@ export async function handleUpdate(update: Td$Update) {
       await updateAuthorizationState(update);
       break;
     case "updateNewMessage":
-      // 处理新消息更新
+      await updateNewMessage(update);
       break;
     default:
       break;

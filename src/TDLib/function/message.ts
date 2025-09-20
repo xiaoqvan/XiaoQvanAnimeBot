@@ -326,6 +326,7 @@ function buildInputMessageContent(
       width: media.width,
       height: media.height,
       caption: parseMarkdownToFormattedText(text !== undefined ? text : ""),
+      has_spoiler: media.has_spoiler || false,
     };
   } else if ("video" in media) {
     input_message_content = {
