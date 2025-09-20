@@ -437,11 +437,8 @@ async function updateAnimeLinks(
   if (!anime.btdata) {
     throw new Error("btdata不存在");
   }
-  console.log("anime.btdata", anime.btdata);
 
   const episodeData = findEpisodeByCacheId(anime.btdata, cache_id);
-
-  console.log("episodeData", episodeData);
 
   if (
     !episodeData ||
@@ -449,7 +446,13 @@ async function updateAnimeLinks(
     !episodeData.episode.unique_id ||
     !episodeData.episode.title
   ) {
-    throw new Error("未找到对应的集数信息");
+    logger.error(`未找到对应的集数信息, ID: ${cache_id}\nanime.btdata: ${JSON.stringify(
+      anime.btdata,
+      null,
+      2
+    )}\n
+      episodeData: ${JSON.stringify(episodeData, null, 2)}`);
+    throw new Error(`未找到对应的集数信息`);
   }
 
   const new_Anime = await getAnimeById(animeId);

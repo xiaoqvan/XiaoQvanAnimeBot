@@ -108,7 +108,7 @@ export type BtEntry = {
   /** 标题 */
   title: string;
   /** 缓存数据库中的 ID */
-  cache_id?: string;
+  cache_id?: number | string;
   /** TG视频唯一 ID */
   videoid?: string;
   /** TG视频远程 ID */
