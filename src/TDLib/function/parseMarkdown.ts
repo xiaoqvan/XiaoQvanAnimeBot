@@ -49,8 +49,31 @@ export function parseMarkdownToFormattedText(
  * 处理 AST 节点数组
  */
 function processNodes(nodes: Content[], context: ParseContext): void {
-  for (const node of nodes) {
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
     processNode(node, context);
+
+    // 在处理完每个块级元素后，如果不是最后一个元素，则添加换行符
+    if (i < nodes.length - 1) {
+      if (
+        [
+          "heading",
+          "blockquote",
+          "paragraph",
+          "code",
+          "list",
+          "thematicBreak",
+        ].includes(node.type)
+      ) {
+        if (context.plainText.length > 0 && !context.plainText.endsWith("\n")) {
+          context.plainText += "\n";
+        }
+      }
+    }
+  }
+  // 处理完所有节点后，如果最后一个是块级元素，确保末尾有换行
+  if (context.plainText.length > 0 && !context.plainText.endsWith("\n")) {
+    context.plainText += "\n";
   }
 }
 
@@ -123,8 +146,6 @@ function processHeading(node: any, context: ParseContext): void {
       _: "textEntityTypeBold",
     },
   });
-
-  context.plainText += "\n";
 }
 
 /**
@@ -133,36 +154,20 @@ function processHeading(node: any, context: ParseContext): void {
 function processBlockquote(node: any, context: ParseContext, depth = 1): void {
   const startOffset = context.plainText.length;
 
-  // 收集引用内容
-  const tempContext: ParseContext = {
-    plainText: "",
-    entities: [],
-  };
-
   if (node.children) {
     for (const child of node.children) {
       if (child.type === "blockquote") {
-        // 递归处理嵌套引用
-        processBlockquote(child, tempContext, depth + 1);
+        // 递归调用，但不再创建实体
+        processBlockquote(child, context, depth + 1);
       } else {
-        processNode(child, tempContext);
+        processNode(child, context);
       }
     }
   }
 
-  context.plainText += tempContext.plainText;
-  const endOffset = context.plainText.length;
-
-  // 复制子实体，调整偏移量
-  for (const entity of tempContext.entities) {
-    context.entities.push({
-      ...entity,
-      offset: (entity.offset || 0) + startOffset,
-    });
-  }
-
   // 只有最外层的 blockquote 才添加实体
   if (depth === 1) {
+    const endOffset = context.plainText.length;
     // 检查子节点中是否有嵌套的 blockquote 来判断是否可折叠
     const isExpandable = node.children.some(
       (child: any) => child.type === "blockquote"
@@ -185,7 +190,6 @@ function processParagraph(node: any, context: ParseContext): void {
   if (node.children) {
     processNodes(node.children, context);
   }
-  context.plainText += "\n";
 }
 
 /**
@@ -335,7 +339,7 @@ function processEmphasis(node: any, context: ParseContext): void {
  */
 function processCode(node: any, context: ParseContext): void {
   const startOffset = context.plainText.length;
-  const codeText = `\n\`\`\`\n${node.value}\n\`\`\`\n`;
+  const codeText = node.value;
   context.plainText += codeText;
   const endOffset = context.plainText.length;
 
@@ -344,7 +348,8 @@ function processCode(node: any, context: ParseContext): void {
     offset: startOffset,
     length: endOffset - startOffset,
     type: {
-      _: "textEntityTypeCode",
+      _: "textEntityTypePreCode",
+      language: node.lang || "",
     },
   });
 }
@@ -379,7 +384,6 @@ function processList(node: any, context: ParseContext): void {
       }
     }
   }
-  context.plainText += "\n";
 }
 
 /**
@@ -394,7 +398,6 @@ function processListItem(
   if (node.children) {
     processNodes(node.children, context);
   }
-  context.plainText += "\n";
 }
 
 /**
@@ -402,7 +405,6 @@ function processListItem(
  */
 function processThematicBreak(node: any, context: ParseContext): void {
   context.plainText += "---";
-  context.plainText += "\n";
 }
 
 /**

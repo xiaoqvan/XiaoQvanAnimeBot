@@ -4,7 +4,7 @@ import type {
   Message as Td$Message,
   updateNewMessage as Td$updateNewMessage,
 } from "tdlib-types";
-import { getChat, getUser } from "../function/get.js";
+import { getChat, getUser } from "../function/get.ts";
 
 export default async function updateNewMessage(update: Td$updateNewMessage) {
   messageLog(update.message);
