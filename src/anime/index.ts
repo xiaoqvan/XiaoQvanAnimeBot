@@ -799,29 +799,33 @@ function parseInfo(title: string, teamName: string | null) {
     }
     episode = epMatch ? epMatch[1] : null;
 
-    // 新增：特殊集数提取
+    // 特殊集数提取（包含繁体变体）
     if (!episode) {
-      // 剧场版、剧场总集篇等
-      if (/剧场版|剧场总集篇|Gekijouban|Eiga|Movie|MOVIE/i.test(title)) {
-        if (/剧场总集篇/i.test(title)) {
+      // 剧场版、剧场总集篇等（支持简体/繁体与外文关键字）
+      if (
+        /(?:剧场版|劇場版|剧场总集篇|劇場總集篇|Gekijouban|Eiga|Movie|MOVIE)/i.test(
+          title
+        )
+      ) {
+        if (/(?:剧场总集篇|劇場總集篇)/i.test(title)) {
           episode = "剧场总集篇";
-        } else if (/剧场版/i.test(title)) {
+        } else if (/(?:剧场版|劇場版)/i.test(title)) {
           episode = "剧场版";
-        } else if (/Gekijouban|Eiga|Movie|MOVIE/i.test(title)) {
+        } else if (/(?:Gekijouban|Eiga|Movie|MOVIE)/i.test(title)) {
           episode = "剧场版";
         }
       }
-      // 电影
-      else if (/电影/i.test(title)) {
+      // 电影（简体/繁体）
+      else if (/(?:电影|電影)/i.test(title)) {
         episode = "电影";
       }
-      // 特别篇
-      else if (/特别篇|特別篇|Special|SP/i.test(title)) {
+      // 特别篇 / 特別篇 / Special / SP
+      else if (/(?:特别篇|特別篇|Special|SP)/i.test(title)) {
         episode = "SP";
       }
       // 番外、Extra、OVA、OAD、特典（带数字或不带数字）
       else {
-        // OVA/OAD/SP/Extra/番外/特典 + 数字（如 OVA2、OAD03、SP1、Extra1、番外2）
+        // OVA/OAD/SP/Extra/番外/特典 + 数字（如 OVA2、OAD03、SP1、Extra1、番外2），包含繁体/英文学写法
         const specialEp = title.match(
           /(?:OVA|OAD|SP|Extra|番外|特典)[\s\-:]?(\d{1,3})/i
         );
@@ -836,7 +840,7 @@ function parseInfo(title: string, teamName: string | null) {
             episode = bracketSpecial[1] + bracketSpecial[2];
           } else {
             // 小数集数，如 48.5
-            const decimalEp = title.match(/[\s\-[](\d{1,3}\.\d)[\s\])]/);
+            const decimalEp = title.match(/[\s\-\[]?(\d{1,3}\.\d)[\s\)\]]/);
             if (decimalEp) {
               episode = decimalEp[1];
             }
