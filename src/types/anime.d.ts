@@ -85,8 +85,15 @@ export type anime = {
   score?: number | string;
   /** 动漫在TG中的数据 */
   btdata?: BtData;
-  /** 导航消息链接 */
+  /**
+   * 导航频道消息链接
+   * @deprecated 已被 tgMessage 取代
+   */
   navMessageLink?: string;
+  /** 新版导航频道消息 */
+  navMessage?: messageType;
+  /** 多条资源导航消息 */
+  navVideoMessage?: messageType[];
   /** 是否为R18 */
   r18?: boolean;
   /** 放送星期 */
@@ -105,6 +112,8 @@ export type BtEntry = {
   episode: string;
   /** TG 链接 */
   TGMegLink?: string;
+  /** 新消息详细 */
+  Message?: messageType;
   /** 标题 */
   title: string;
   /** 缓存数据库中的 ID */
@@ -218,4 +227,15 @@ export type infobox = {
   key: string;
   /** 属性值，可能是字符串或数组（数组项可为纯字符串、{v: string} 或 {k: string, v: string}） */
   value: string | (string | { v: string } | { k: string; v: string })[];
+};
+
+export type messageType = {
+  /** 消息所属的聊天 ID */
+  chat_id: number;
+  /** 消息 ID */
+  message_id: number;
+  /** 线程 ID */
+  thread_id?: number;
+  /** 消息链接 */
+  link: string;
 };

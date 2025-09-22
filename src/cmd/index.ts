@@ -5,10 +5,8 @@ import handleSearchAnime from "./searchanime.ts";
 import handleHelp from "./help.ts";
 import logger from "../log/index.ts";
 import { ErrorHandler } from "../function/index.ts";
-import { sendMessage } from "../TDLib/function/message.ts";
-import { parseMarkdownToFormattedText } from "../TDLib/function/parseMarkdown.ts";
-import { navmegtext } from "../anime/text.ts";
 import handleSetAnimeR18 from "./setanimer18.ts";
+import ConAnimeInformation from "./jz.ts";
 
 /**
  * 处理命令
@@ -64,12 +62,22 @@ export async function BotCommand(message: messageType) {
           commandParts: string[]
         ) => Promise<unknown> | unknown
       > = {
+        // 启动
         start: start,
+        // 帮助
         help: handleHelp,
+
+        // 搜索动漫
         searchanime: handleSearchAnime,
         s: handleSearchAnime,
+
+        // 测试用
         test: test,
+
+        // 设置 R18
         setanimer18: handleSetAnimeR18,
+
+        ca: ConAnimeInformation,
       };
 
       // 基于命令名分发到对应的处理器
