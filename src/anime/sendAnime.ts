@@ -3,7 +3,9 @@ import fs from "fs/promises";
 import logger from "../log/index.ts";
 
 import {
-  updateAnimeNavMessageLink,
+  updateAnimeNavMessage,
+  // updateAnimeNavMessageLink, // 不再使用链接单独更新
+  updateAnimeNavVideoMessage, // 新增
   updateAnimeScore,
   updateTorrentStatus,
 } from "../database/update.ts";
@@ -28,8 +30,25 @@ export async function sendMegToNavAnime(id: number) {
 
   if (!Anime) return;
 
-  // 导航频道中有该番剧，编辑现有消息
   if (Anime.navMessageLink) {
+    const navmeg = await getMessageLinkInfo(Anime.navMessageLink);
+
+    if (!navmeg || !navmeg.message) {
+      throw new Error("导航频道消息链接无效");
+    }
+
+    // 导航频道有旧消息，进行新消息适配
+    const newMeg = {
+      chat_id: navmeg.chat_id,
+      message_id: navmeg.message.id,
+      thread_id: navmeg.message_thread_id,
+      link: Anime.navMessageLink,
+    };
+    await updateAnimeNavMessage(Anime.id, newMeg);
+  }
+
+  // 导航频道中有该番剧，编辑现有消息
+  if (Anime.navMessage?.link) {
     // 更新评分
     const Subject = await getSubjectById(Anime.id);
     const score = Subject?.rating?.score || "*";
@@ -37,37 +56,97 @@ export async function sendMegToNavAnime(id: number) {
     updateAnimeScore(Anime.id, score);
 
     Anime.score = score;
-
-    const navmeg = await getMessageLinkInfo(Anime.navMessageLink);
-    const navCaption = parseMarkdownToFormattedText(navmegtext(Anime));
-
-    if (!navmeg.message) {
-      logger.error(`导航消息链接无效: ${Anime.navMessageLink}`);
-      return;
-    }
-    if (
-      navmeg.message.content._ === "messagePhoto" &&
-      navCaption.text &&
-      navmeg.message.content.caption.text.trim() === navCaption.text.trim()
-    ) {
-      // 内容未变无需更新
-      return Anime.navMessageLink;
-    }
-
+    const megtexts = navmegtext(Anime); // megtexts[0] 为主导航，1.. 为资源
     await editMessageCaption({
-      chat_id: navmeg.chat_id,
-      message_id: navmeg.message.id,
-      text: navmegtext(Anime),
+      chat_id: Anime.navMessage.chat_id,
+      message_id: Anime.navMessage.message_id,
+      text: megtexts[0],
     });
 
-    return Anime.navMessageLink;
+    // 没有就发送新的，有就修改（并补足多出来的）
+    const existingVideoMsgs = Anime.navVideoMessage ?? [];
+    let idx = 1;
+
+    if (existingVideoMsgs.length > 0) {
+      // 先修改已有的
+      for (const videoMeg of existingVideoMsgs) {
+        if (idx >= megtexts.length) break;
+        await editMessageCaption({
+          chat_id: videoMeg.chat_id,
+          message_id: videoMeg.message_id,
+          text: megtexts[idx],
+        });
+        idx++;
+      }
+      // 如果 megtexts 有新增条目，则补发并写入数据库
+      for (; idx < megtexts.length; idx++) {
+        const videoMeg = await sendMessage(Anime.navMessage.chat_id, {
+          invoke: {
+            message_thread_id: Anime.navMessage.thread_id,
+            input_message_content: {
+              _: "inputMessageText",
+              text: parseMarkdownToFormattedText(megtexts[idx]),
+            },
+          },
+        });
+
+        if (!videoMeg) {
+          logger.error(
+            "sendMegToNavAnime",
+            `补发导航频道消息失败: ${Anime.navMessage.chat_id}, ${Anime.id}`
+          );
+          continue;
+        }
+
+        const navLink = await getMessageLink(videoMeg.chat_id, videoMeg.id);
+        await updateAnimeNavVideoMessage(Anime.id, {
+          page: idx, // 与 megtexts 的索引对应：1.. 为资源页
+          chat_id: videoMeg.chat_id,
+          message_id: videoMeg.id,
+          thread_id: Anime.navMessage.thread_id,
+          link: navLink.link,
+        });
+      }
+    } else {
+      // 没有历史视频消息，全部按顺序发送，并写入数据库
+      for (idx = 1; idx < megtexts.length; idx++) {
+        const videoMeg = await sendMessage(Anime.navMessage.chat_id, {
+          invoke: {
+            message_thread_id: Anime.navMessage.thread_id,
+            input_message_content: {
+              _: "inputMessageText",
+              text: parseMarkdownToFormattedText(megtexts[idx]),
+            },
+          },
+        });
+        if (!videoMeg) {
+          logger.error(
+            "sendMegToNavAnime",
+            `补发导航频道消息失败: ${Anime.navMessage.chat_id}, ${Anime.id}`
+          );
+          continue;
+        }
+
+        const navLink = await getMessageLink(videoMeg.chat_id, videoMeg.id);
+        await updateAnimeNavVideoMessage(Anime.id, {
+          page: idx,
+          chat_id: videoMeg.chat_id,
+          message_id: videoMeg.id,
+          thread_id: Anime.navMessage.thread_id,
+          link: navLink.link,
+        });
+      }
+    }
+
+    return Anime.navMessage?.link;
   }
 
   // 导航频道中没有的番剧，新动漫发送逻辑
   let navmeg = null;
-  let localImagePath = null;
+  let localImagePath: string | null = null;
+  const megtexts = navmegtext(Anime);
 
-  // 首先尝试使用远程图片
+  // 首先尝试使用远程图片（caption 只使用首条 megtexts[0]）
   navmeg = await sendMessage(Number(process.env.NAV_CHANNEL), {
     invoke: {
       input_message_content: {
@@ -76,14 +155,15 @@ export async function sendMegToNavAnime(id: number) {
           _: "inputFileRemote",
           id: Anime.image,
         },
-        caption: parseMarkdownToFormattedText(navmegtext(Anime)),
+        caption: parseMarkdownToFormattedText(megtexts[0]),
       },
     },
   });
+
   // 如果远程图片发送失败，尝试下载到本地
   if (!navmeg) {
     try {
-      const localImagePath = await downloadFile(Anime.image);
+      localImagePath = await downloadFile(Anime.image);
 
       // 使用本地图片发送
       navmeg = await sendMessage(Number(process.env.NAV_CHANNEL), {
@@ -94,7 +174,7 @@ export async function sendMegToNavAnime(id: number) {
               _: "inputFileLocal",
               path: localImagePath,
             },
-            caption: parseMarkdownToFormattedText(navmegtext(Anime)),
+            caption: parseMarkdownToFormattedText(megtexts[0]),
           },
         },
       });
@@ -113,9 +193,50 @@ export async function sendMegToNavAnime(id: number) {
     throw new Error("发送导航消息失败");
   }
 
-  // 获取导航频道消息链接并保存到数据库
+  // 获取首条（图片）消息链接并写入 navMessage
   const navLink = await getMessageLink(navmeg.chat_id, navmeg.id);
-  await updateAnimeNavMessageLink(Anime.id, navLink.link);
+  const navMessage = {
+    chat_id: navmeg.chat_id,
+    message_id: navmeg.id,
+    thread_id: navmeg.message_thread_id,
+    link: navLink.link,
+  };
+  await updateAnimeNavMessage(Anime.id, navMessage);
+
+  // 继续发送后续文本消息，并写入 navVideoMessage
+  for (let i = 1; i < megtexts.length; i++) {
+    const videoMeg = await sendMessage(navmeg.chat_id, {
+      invoke: {
+        reply_to: {
+          _: "inputMessageReplyToMessage",
+          message_id: navmeg.id,
+        },
+        message_thread_id: navmeg.message_thread_id,
+        input_message_content: {
+          _: "inputMessageText",
+          text: parseMarkdownToFormattedText(megtexts[i]),
+        },
+      },
+    });
+
+    if (!videoMeg) {
+      logger.error(
+        "sendMegToNavAnime",
+        `补发导航频道消息失败: ${navmeg.chat_id}, ${Anime.id}, index=${i}`
+      );
+      continue;
+    }
+
+    const link = await getMessageLink(videoMeg.chat_id, videoMeg.id);
+    await updateAnimeNavVideoMessage(Anime.id, {
+      page: i,
+      chat_id: videoMeg.chat_id,
+      message_id: videoMeg.id,
+      thread_id: navmeg.message_thread_id,
+      link: link.link,
+    });
+  }
+
   return navLink.link;
 }
 

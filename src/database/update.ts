@@ -1,6 +1,6 @@
 import { getDatabase } from "./initDb.ts";
 import { formatSubGroupName } from "../function/index.ts";
-import type { anime as AnimeType } from "../types/anime.ts";
+import type { anime as AnimeType, messageType } from "../types/anime.ts";
 const db = await getDatabase();
 
 /**
@@ -118,6 +118,7 @@ export async function updateAnimeScore(
  * @param navMessageLink - 导航频道消息链接
  * @returns 更新成功返回true，否则返回false
  * @throws 当参数无效或数据库操作失败时抛出异常
+ * @deprecated 请使用 updateAnimeNavMessage 方法
  */
 export async function updateAnimeNavMessageLink(
   animeId: number,
@@ -382,6 +383,133 @@ export async function updateAnimeR18(animeId: number, r18: boolean) {
   } catch (error) {
     throw new Error(
       `更新动漫R18字段失败: ${error instanceof Error ? error.message : error}`
+    );
+  }
+}
+
+/**
+ * 更新动漫的导航频道消息链接
+ * @param animeId - 动漫的id字段值
+ * @param navMessageLink - 导航频道消息链接
+ * @returns 更新成功返回true，否则返回false
+ * @throws 当参数无效或数据库操作失败时抛出异常
+ */
+export async function updateAnimeNavMessage(
+  animeId: number,
+  Message: messageType
+) {
+  if (!animeId || !Message) {
+    throw new Error("动漫ID和导航频道消息都是必需的参数");
+  }
+
+  try {
+    // 首先查找动漫文档
+    const anime = await db.collection("anime").findOne({ id: animeId });
+
+    if (!anime) {
+      throw new Error(`未找到ID为 ${animeId} 的动漫`);
+    }
+
+    // 更新导航频道消息链接
+    const result = await db.collection("anime").updateOne(
+      { id: animeId },
+      {
+        $set: {
+          navMessage: Message,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    return result.modifiedCount > 0;
+  } catch (error) {
+    throw new Error(
+      `更新导航频道消息链接失败: ${
+        error instanceof Error ? error.message : error
+      }`
+    );
+  }
+}
+
+export async function updateAnimeNavVideoMessage(
+  animeId: number,
+  videoMessage:
+    | {
+        /** 索引，从1开始，navMessage为主消息 */
+        page: number;
+        /** 消息所属的聊天 ID */
+        chat_id: number;
+        /** 消息 ID */
+        message_id: number;
+        /** 线程 ID */
+        thread_id?: number;
+        /** 消息链接 */
+        link: string;
+      }[]
+    | {
+        /** 索引，从1开始，navMessage为主消息 */
+        page: number;
+        /** 消息所属的聊天 ID */
+        chat_id: number;
+        /** 消息 ID */
+        message_id: number;
+        /** 线程 ID */
+        thread_id?: number;
+        /** 消息链接 */
+        link: string;
+      }
+) {
+  if (!animeId || !videoMessage) {
+    throw new Error("动漫ID和视频消息都是必需的参数");
+  }
+
+  try {
+    const collection = db.collection<AnimeType>("anime");
+    const anime = await collection.findOne({ id: animeId });
+
+    if (!anime) {
+      throw new Error(`未找到ID为 ${animeId} 的动漫`);
+    }
+
+    // 如果历史数据是单个对象而非数组，先迁移为数组
+    if (anime.navVideoMessage && !Array.isArray(anime.navVideoMessage)) {
+      await collection.updateOne(
+        { id: animeId },
+        {
+          $set: {
+            navVideoMessage: [anime.navVideoMessage],
+          },
+        }
+      );
+    } else if (!anime.navVideoMessage) {
+      // 确保字段存在为数组
+      await collection.updateOne(
+        { id: animeId },
+        {
+          $set: { navVideoMessage: [] },
+        }
+      );
+    }
+
+    const messages = Array.isArray(videoMessage)
+      ? videoMessage
+      : [videoMessage];
+    if (messages.length === 0) return false;
+
+    const result = await collection.updateOne(
+      { id: animeId },
+      {
+        $addToSet: { navVideoMessage: { $each: messages } },
+        $set: { updatedAt: new Date() },
+      }
+    );
+
+    return result.modifiedCount > 0;
+  } catch (error) {
+    throw new Error(
+      `更新导航频道视频消息失败: ${
+        error instanceof Error ? error.message : error
+      }`
     );
   }
 }

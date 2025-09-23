@@ -93,7 +93,18 @@ export type anime = {
   /** 新版导航频道消息 */
   navMessage?: messageType;
   /** 多条资源导航消息 */
-  navVideoMessage?: messageType[];
+  navVideoMessage?: {
+    /** 索引，从1开始，navMessage为主消息 */
+    page: number;
+    /** 消息所属的聊天 ID */
+    chat_id: number;
+    /** 消息 ID */
+    message_id: number;
+    /** 线程 ID */
+    thread_id?: number;
+    /** 消息链接 */
+    link: string;
+  }[];
   /** 是否为R18 */
   r18?: boolean;
   /** 放送星期 */
