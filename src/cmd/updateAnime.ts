@@ -1,6 +1,5 @@
 import type { message as messageType } from "tdlib-types";
 import { isUserAdmin } from "../TDLib/function/index.ts";
-import { send } from "process";
 import { sendMessage } from "../TDLib/function/message";
 import { sendMegToNavAnime } from "../anime/sendAnime.ts";
 import { getAnimeById } from "../database/query";
