@@ -1,8 +1,8 @@
 import type { message as messageType } from "tdlib-types";
 import { isUserAdmin } from "../TDLib/function/index.ts";
-import { sendMessage } from "../TDLib/function/message";
+import { sendMessage } from "../TDLib/function/message.ts";
 import { sendMegToNavAnime } from "../anime/sendAnime.ts";
-import { getAnimeById } from "../database/query";
+import { getAnimeById } from "../database/query.ts";
 
 export default async function updateAnime(
   message: messageType,
