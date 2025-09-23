@@ -16,7 +16,11 @@ import { saveAnime } from "../../database/create.ts";
 import { sendMegToAnime, sendMegToNavAnime } from "../../anime/sendAnime.ts";
 import { AnimeText } from "../../anime/text.ts";
 import { getMessageLink } from "../../TDLib/function/get.ts";
-import { addAnimeNameAlias, updateAnimeBtdata } from "../../database/update.ts";
+import {
+  addAnimeNameAlias,
+  updateAnimeBtdata,
+  updateTorrentStatus,
+} from "../../database/update.ts";
 import { findEpisodeByCacheId, omit } from "../../function/index.ts";
 import { deleteCacheAnime } from "../../database/delete.ts";
 import { getClient } from "../../TDLib/index.ts";
@@ -229,6 +233,7 @@ export async function falseAnime(
     text: `成功更新动漫信息`,
     show_alert: false,
   });
+
   await deleteCacheAnime(newAnime.id, Cache_id);
 }
 
@@ -510,7 +515,7 @@ async function updateAnimeLinks(
   );
   await sendMegToNavAnime(animeId);
   await deleteCacheAnime(anime.id, cache_id);
-
+  await updateTorrentStatus(cacheItem.title, "完成");
   return true;
 }
 
