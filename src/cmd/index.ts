@@ -10,6 +10,7 @@ import handleHelp from "./help.ts";
 import handleSetAnimeR18 from "./setanimer18.ts";
 import ConAnimeInformation from "./jz.ts";
 import addAnime from "./addanime.ts";
+import updateAnime from "./updateAnime.ts";
 
 import type { message as messageType } from "tdlib-types";
 
@@ -82,9 +83,14 @@ export async function BotCommand(message: messageType) {
         // 设置 R18
         setanimer18: handleSetAnimeR18,
 
+        // 纠正动漫信息
         ca: ConAnimeInformation,
 
+        // 添加动漫
         addanime: addAnime,
+
+        // 更新动漫文本信息
+        updateanime: updateAnime,
       };
 
       // 基于命令名分发到对应的处理器
