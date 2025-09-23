@@ -1,4 +1,5 @@
 import axios from "axios";
+import * as cheerio from "cheerio";
 import logger from "../log/index.ts";
 import type { bangumiAnime, bangumiSearchResult } from "../types/anime.ts";
 
@@ -203,4 +204,62 @@ export async function getEpisodeInfo(id: number | string) {
     throw new Error(`获取数据失败，状态码：${data.status}`);
   }
   return data.data;
+}
+
+/**
+ * 获取dmhy种子信息
+ * @param url - dmhy链接
+ * @returns
+ */
+export async function fetchDmhyTorrent(url: string) {
+  if (!url.includes("dmhy.org/topics/view/")) {
+    throw new Error("无效的dmhy链接");
+  }
+  try {
+    const response = await retryRequest(async () => {
+      return await axios.get(url, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0",
+        },
+      });
+    });
+
+    const $ = cheerio.load(response.data);
+
+    const title =
+      $(
+        "body > div > div > div.main > div.topics_bk.ui-corner-all > div.topic-main > div.topic-title.box.ui-corner-all > h3"
+      )
+        .text()
+        .trim() || "未知标题";
+
+    const author =
+      $(
+        "body > div > div > div.main > div.topics_bk.ui-corner-all > div.user-sidebar > div:nth-child(1) > p:nth-child(2) > a"
+      )
+        .text()
+        .trim() || "未知作者";
+
+    const team =
+      $(
+        "body > div > div > div.main > div.topics_bk.ui-corner-all > div.user-sidebar > div:nth-child(2) > p:nth-child(2) > a"
+      )
+        .text()
+        .trim() || "未知发布组";
+
+    const pubDate =
+      $(
+        "body > div > div > div.main > div.topics_bk.ui-corner-all > div.topic-main > div.topic-title.box.ui-corner-all > div.info.resource-info.right > ul > li:nth-child(2) > span"
+      )
+        .text()
+        .trim() || "未知时间";
+
+    const magnet = $("#a_magnet").attr("href") || "未知磁力链接";
+
+    return { title, pubDate, magnet, author, team };
+  } catch (error) {
+    logger.error("请求失败:", error);
+    throw error;
+  }
 }

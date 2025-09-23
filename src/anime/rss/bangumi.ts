@@ -8,7 +8,7 @@ import type { RssAnimeItem } from "../../types/anime.ts";
  * @param pubDateString 发布时间字符串
  * @returns
  */
-function formatPubDate(pubDateString: string): string {
+export function formatPubDate(pubDateString: string): string {
   const timestamp = Date.parse(pubDateString);
   if (isNaN(timestamp)) {
     logger.warn(`formatPubDate: 无法解析的日期字符串: ${pubDateString}`);

@@ -3,7 +3,7 @@ import * as cheerio from "cheerio";
 import logger from "../../log/index.ts";
 import type { RssAnimeItem } from "../../types/anime.ts";
 
-const authorMapping: Record<string, string> = {
+export const authorMapping: Record<string, string> = {
   smzase: "三明治摆烂组",
   nekomoekissaten: "喵萌奶茶屋",
   ANiTorrent: "ANi",
@@ -35,7 +35,7 @@ const authorWhitelist = Object.keys(authorMapping);
  * @param pubDateString 发布时间字符串
  * @returns
  */
-function formatPubDate(pubDateString: string): string {
+export function formatDmhyPubDate(pubDateString: string): string {
   const date = new Date(pubDateString);
 
   const year = date.getFullYear();
@@ -68,7 +68,7 @@ export async function fetchDmhyRss() {
       const title = $(item).find("title").text().trim().replace(/\s+/g, " ");
       const link = $(item).find("link").text();
       const pubDateRaw = $(item).find("pubDate").text();
-      const pubDate = formatPubDate(pubDateRaw);
+      const pubDate = formatDmhyPubDate(pubDateRaw);
       const magnet = $(item).find("enclosure").attr("url");
 
       if ($(item).find("category").text() !== "動畫") {

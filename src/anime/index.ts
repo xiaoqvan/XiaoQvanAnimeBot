@@ -425,7 +425,7 @@ export async function buildAndSaveAnimeFromInfo(
  * @param anime
  * @param item
  */
-async function updateAnime(anime: animeType, item: animeItem) {
+export async function updateAnime(anime: animeType, item: animeItem) {
   // 下载种子文件并获取下载路径
   const Torrent = await downloadTorrentFromUrl(item.magnet, item.title);
 
@@ -670,7 +670,7 @@ async function ErrorHandler(error: unknown) {
  * @param teamName - 动漫发布组名称
  * @returns
  */
-function parseInfo(title: string, teamName: string | null) {
+export function parseInfo(title: string, teamName: string | null) {
   let names = [];
   let source = "";
   let episode;

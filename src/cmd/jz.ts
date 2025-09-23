@@ -1,12 +1,26 @@
 import { getAnimeById, getCacheItemById } from "../database/query.ts";
 import { sendMessage } from "../TDLib/function/message.ts";
-import type { message as messageType } from "tdlib-types";
 import { parseMarkdownToFormattedText } from "../TDLib/function/parseMarkdown.ts";
+import { isUserAdmin } from "../TDLib/function/index.ts";
+
+import type { message as messageType } from "tdlib-types";
 
 export default async function ConAnimeInformation(
   message: messageType,
   commandParts: string[]
 ) {
+  // 检查是否为管理员
+  const isAdmin = await isUserAdmin(
+    Number(process.env.ADMIN_GROUP_ID),
+    message.sender_id
+  );
+  const isBotAdmin =
+    message.sender_id._ === "messageSenderUser" &&
+    message.sender_id.user_id === Number(process.env.BOT_ADMIN_ID);
+
+  if (!isAdmin && !isBotAdmin) {
+    return;
+  }
   if (
     message.content._ !== "messageText" ||
     message.sender_id._ !== "messageSenderUser"

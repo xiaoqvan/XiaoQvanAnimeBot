@@ -1,12 +1,17 @@
 import { getMe } from "../TDLib/function/get.ts";
-import type { message as messageType } from "tdlib-types";
+
+import logger from "../log/index.ts";
+
+import { ErrorHandler } from "../function/index.ts";
+
 import start from "./start.ts";
 import handleSearchAnime from "./searchanime.ts";
 import handleHelp from "./help.ts";
-import logger from "../log/index.ts";
-import { ErrorHandler } from "../function/index.ts";
 import handleSetAnimeR18 from "./setanimer18.ts";
 import ConAnimeInformation from "./jz.ts";
+import addAnime from "./addanime.ts";
+
+import type { message as messageType } from "tdlib-types";
 
 /**
  * 处理命令
@@ -78,6 +83,8 @@ export async function BotCommand(message: messageType) {
         setanimer18: handleSetAnimeR18,
 
         ca: ConAnimeInformation,
+
+        addanime: addAnime,
       };
 
       // 基于命令名分发到对应的处理器
