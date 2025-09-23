@@ -10,7 +10,11 @@ import {
   updateTorrentStatus,
 } from "../database/update.ts";
 
-import { editMessageCaption, sendMessage } from "../TDLib/function/message.ts";
+import {
+  editMessageCaption,
+  editMessageText,
+  sendMessage,
+} from "../TDLib/function/message.ts";
 import { getAnimeById } from "../database/query.ts";
 import { AnimeText, navmegtext } from "./text.ts";
 import { getSubjectById } from "./info.ts";
@@ -30,6 +34,7 @@ export async function sendMegToNavAnime(id: number) {
 
   if (!Anime) return;
 
+  // 旧的转换为新的
   if (Anime.navMessageLink) {
     const navmeg = await getMessageLinkInfo(Anime.navMessageLink);
 
@@ -46,7 +51,6 @@ export async function sendMegToNavAnime(id: number) {
     };
     await updateAnimeNavMessage(Anime.id, newMeg);
   }
-
   // 导航频道中有该番剧，编辑现有消息
   if (Anime.navMessage?.link) {
     // 更新评分
@@ -57,11 +61,34 @@ export async function sendMegToNavAnime(id: number) {
 
     Anime.score = score;
     const megtexts = navmegtext(Anime); // megtexts[0] 为主导航，1.. 为资源
-    await editMessageCaption({
-      chat_id: Anime.navMessage.chat_id,
-      message_id: Anime.navMessage.message_id,
-      text: megtexts[0],
-    });
+
+    // 主导航消息（应为 messagePhoto）：仅在文本变化时才编辑
+    try {
+      const navInfo = await getMessageLinkInfo(Anime.navMessage.link);
+      const newCaptionText = parseMarkdownToFormattedText(megtexts[0]).text;
+      const oldCaptionText =
+        navInfo?.message?.content?._ === "messagePhoto"
+          ? navInfo.message.content.caption?.text ?? ""
+          : navInfo?.message?.content?._ === "messageText"
+          ? // 兼容极端情况：历史主消息是文本
+            navInfo.message.content.text?.text ?? ""
+          : "";
+
+      if (oldCaptionText !== newCaptionText) {
+        await editMessageCaption({
+          chat_id: Anime.navMessage.chat_id,
+          message_id: Anime.navMessage.message_id,
+          text: megtexts[0],
+        });
+      }
+    } catch (e) {
+      // 获取旧消息失败则按原逻辑尝试编辑
+      await editMessageCaption({
+        chat_id: Anime.navMessage.chat_id,
+        message_id: Anime.navMessage.message_id,
+        text: megtexts[0],
+      });
+    }
 
     // 没有就发送新的，有就修改（并补足多出来的）
     const existingVideoMsgs = Anime.navVideoMessage ?? [];
@@ -71,11 +98,45 @@ export async function sendMegToNavAnime(id: number) {
       // 先修改已有的
       for (const videoMeg of existingVideoMsgs) {
         if (idx >= megtexts.length) break;
-        await editMessageCaption({
-          chat_id: videoMeg.chat_id,
-          message_id: videoMeg.message_id,
-          text: megtexts[idx],
-        });
+        // 文本消息（通常为 messageText），仅在变化时才编辑
+        try {
+          const info = await getMessageLinkInfo(videoMeg.link);
+          const newText = parseMarkdownToFormattedText(megtexts[idx]).text;
+          const content: any = info?.message?.content;
+          if (content?._ === "messageText") {
+            const oldText = content?.text?.text ?? "";
+            if (oldText !== newText) {
+              await editMessageText({
+                chat_id: videoMeg.chat_id,
+                message_id: videoMeg.message_id,
+                text: megtexts[idx],
+              });
+            }
+          } else if (content?._ === "messagePhoto") {
+            const oldCaption = content?.caption?.text ?? "";
+            if (oldCaption !== newText) {
+              await editMessageCaption({
+                chat_id: videoMeg.chat_id,
+                message_id: videoMeg.message_id,
+                text: megtexts[idx],
+              });
+            }
+          } else {
+            // 未知类型，保持兼容使用编辑文本
+            await editMessageText({
+              chat_id: videoMeg.chat_id,
+              message_id: videoMeg.message_id,
+              text: megtexts[idx],
+            });
+          }
+        } catch (e) {
+          // 获取旧消息失败则按原逻辑尝试编辑为文本
+          await editMessageText({
+            chat_id: videoMeg.chat_id,
+            message_id: videoMeg.message_id,
+            text: megtexts[idx],
+          });
+        }
         idx++;
       }
       // 如果 megtexts 有新增条目，则补发并写入数据库
