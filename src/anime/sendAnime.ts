@@ -30,11 +30,11 @@ import type { animeItem, anime as animeType } from "../types/anime.ts";
  * @returns 导航消息链接
  */
 export async function sendMegToNavAnime(id: number) {
-  const Anime = await getAnimeById(id);
+  let Anime = await getAnimeById(id);
 
   if (!Anime) return;
 
-  // 旧的转换为新的
+  // 旧的转换为新的过渡
   if (Anime.navMessageLink) {
     const navmeg = await getMessageLinkInfo(Anime.navMessageLink);
 
@@ -50,6 +50,8 @@ export async function sendMegToNavAnime(id: number) {
       link: Anime.navMessageLink,
     };
     await updateAnimeNavMessage(Anime.id, newMeg);
+    Anime = await getAnimeById(id);
+    if (!Anime) return;
   }
   // 导航频道中有该番剧，编辑现有消息
   if (Anime.navMessage?.link) {
