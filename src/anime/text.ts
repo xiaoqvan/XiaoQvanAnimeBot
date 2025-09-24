@@ -39,7 +39,7 @@ export function navmegtext(anime: animeType): string[] {
       ? `\n\n资源:\n${sections.join("\n")}`
       : "";
 
-    const tagsPart = `\n\n标签: ${formatTags(anime.tags || [])}`;
+    const tagsPart = `\n\n标签: \n>> ${formatTags(anime.tags || [])}`;
 
     return `${title}${baseInfo}${summaryPart}${resourcesPart}${tagsPart}`;
   };
@@ -210,7 +210,13 @@ export function formatBtData(btdata: BtDataType): string[] {
       })
       .join(" | ");
 
-    return `#${key}\n${line}`;
+    const section = `#${key}\n${line}`;
+
+    // 给资源段的每一行都加引用前缀（"> "）
+    return section
+      .split("\n")
+      .map((l) => (l.trim() ? `> ${l}` : l))
+      .join("\n");
   });
 }
 
