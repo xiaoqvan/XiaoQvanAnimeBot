@@ -210,7 +210,7 @@ export function formatBtData(btdata: BtDataType): string[] {
       })
       .join(" | ");
 
-    const section = `#${key}\n${line}`;
+    const section = `[#${safeTag(key)}]\n${line}`;
 
     // 给资源段的每一行都加引用前缀（"> "）
     return section
